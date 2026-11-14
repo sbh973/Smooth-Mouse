@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 3: JS features, parity test and live inference. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 4: adaptive controller and stabilized cursor. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -26,6 +26,11 @@ content/features.js  JavaScript twin of ml/features.py
 content/model.js     Runs model.json in the browser (standardize → logits → softmax)
 content/live.js      Classifies the last 400 ms every 50 ms; debug badge
 demo/parity.html     Checks JS features/probabilities match Python exactly
+content/filters.js   One Euro filter (speed-adaptive low-pass)
+content/controller.js Model probabilities → smoothing strength (hysteresis, slew, override)
+content/stabilize.js Steady cursor, hides the real one while smoothing, redirects clicks
+content/viz.js       Demo page: raw vs stabilized trails, jitter and lag metrics
+shared/settings.js   Default values for every popup toggle
 ```
 
 ## Load the extension
@@ -127,6 +132,45 @@ python ml/train.py ~/Downloads/smooth-mouse-recording-*.json
 2. Reload the extension in `about:debugging`, then open <http://localhost:5500/demo/>. A badge appears in the bottom-right corner.
 3. Move calmly: the badge says **STABLE**. Wiggle the mouse quickly back and forth: it switches to **UNSTABLE**. Stop moving: back to STABLE.
 4. The popup's "Movement right now" row shows the same label. The "Debug badge on all sites" switch shows the badge on any website.
+
+## Stabilized cursor (Checkpoint 4)
+
+```
+raw pointer samples ──► One Euro filter ──► steady cursor (drawn by us)
+                             ▲
+model probabilities ──► controller ──► smoothing strength 0..1
+(every 50 ms)              │
+                           └─ fast movement in one direction → turn smoothing down
+```
+
+- **One Euro filter** (`filters.js`): a low-pass filter whose cutoff rises with speed. The controller picks its parameters, from barely-there (6 Hz cutoff) to strong (0.6 Hz, which cuts a 5 Hz tremor by about 85%).
+- **Controller** (`controller.js`):
+  - **Levels:** light (stable), medium (uncertain) and strong (unstable).
+  - **Hysteresis:** it goes up a level as soon as the model is ≥ 55% sure, but only goes down after the evidence drops below 35% for 400 ms.
+  - **Gradual strength:** strength rises in about 150 ms and falls over about 600 ms, so nothing jumps.
+  - **Override:** fast movement in one direction (net displacement over 80 ms faster than 350–1,000 px/s) loosens the filter whatever the model says. A tremor goes back and forth, so it doesn't trigger this. A deliberate reach does, which keeps the user in control.
+- **Steady cursor** (`stabilize.js`): only while smoothing is active do we hide the real cursor and draw our own. Calm movement uses the real cursor, so it has **zero added lag**.
+- **Clicks**: if the steady cursor is over a different element than the real one, the real click is cancelled and a click is sent to the element under the steady cursor.
+
+**Simulated results** (Node test with the real extension code):
+
+| Movement | Smoothing | Jitter (raw → steady) | Lag |
+|---|---|---|---|
+| Calm drag / fast flick | off | unchanged | 0 px |
+| 6 Hz, 8 px shake | strong | 5.4 → 0.6 px (**−88%**) | n/a |
+| 5 Hz, 12 px shake | strong | 6.0 → 0.8 px (**−87%**) | n/a |
+
+**Limitations:**
+- **Untrusted clicks:** redirected clicks are created by a script (`isTrusted = false`). Most sites accept them, but some ignore them (e.g. file pickers, some payment and anti-bot widgets). Turn off "Click where the steady cursor is" in the popup if a site misbehaves.
+- **Hover effects** (CSS `:hover`, tooltips) follow the *real* pointer, not the steady one.
+- **Iframes and scrollbars** still show the real cursor, because content scripts only run in the top page.
+
+### Test it
+1. Reload the extension in `about:debugging`, then refresh <http://localhost:5500/demo/>.
+2. Move calmly: the badge says *Smoothing: 0% (light)*, the real cursor is visible and *Added lag* stays near 0 ms.
+3. Shake the mouse: smoothing climbs to *strong*, the cursor becomes our drawn arrow, the teal (steady) trail is much calmer than the orange (raw) one, and *Jitter* shows a big reduction.
+4. While shaking, click **Send**: the click goes to whatever the *steady* cursor is on.
+5. Every part has a popup toggle: *Stabilize cursor* and *Click where the steady cursor is*.
 
 ## Privacy
 All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.

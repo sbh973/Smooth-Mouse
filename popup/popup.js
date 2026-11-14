@@ -3,7 +3,7 @@ const api = globalThis.browser ?? globalThis.chrome;
 
 // --- Switches: every <button data-setting="..."> toggles that key in storage.local.
 // Content scripts listen for storage changes, so pages update immediately.
-const DEFAULTS = { enabled: true, showBadgeEverywhere: false };
+const DEFAULTS = window.SmoothMouseDefaults; // from shared/settings.js
 const switches = [...document.querySelectorAll("[data-setting]")];
 
 function showSwitch(btn, on) {

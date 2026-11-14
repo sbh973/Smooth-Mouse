@@ -68,6 +68,19 @@ Thanks!</textarea>
       <p class="hint">The badge in the bottom-right corner shows what the on-device model thinks of the last 400 ms of movement, updated every 50 ms. Move calmly, then wiggle the mouse. The labels are engineering labels, not a diagnosis.</p>
       <p class="hint"><a href="parity.html">Run the Python vs JavaScript parity test →</a></p>
 
+      <h3>Stabilization</h3>
+      <p class="hint">Wiggle the mouse over the page. The <span class="legend raw">orange</span> line is your real movement; the <span class="legend steady">teal</span> line is the stabilized cursor.</p>
+      <label class="check">
+        <input type="checkbox" id="sm-show-trails" checked>
+        Show raw vs stabilized trails
+      </label>
+      <dl class="metrics">
+        <div><dt>Movement</dt><dd id="sm-metric-class">–</dd></div>
+        <div><dt>Smoothing</dt><dd id="sm-metric-strength">–</dd></div>
+        <div><dt>Jitter (raw → steady)</dt><dd id="sm-metric-jitter">–</dd></div>
+        <div><dt>Added lag</dt><dd id="sm-metric-lag">–</dd></div>
+      </dl>
+
       <h3>Export recording</h3>
       <p class="hint">Downloads raw pointer events (x, y, time) from this page as JSON for analysis in Python. Keystrokes are never included.</p>
       <div class="export-row">

@@ -42,3 +42,33 @@
 .sm-badge-row[data-class="unstable"] .sm-badge-fill { background: #B4441A; }
 .sm-badge-pct { text-align: right; font-variant-numeric: tabular-nums; }
 .sm-badge-note { margin-top: 6px; font-size: 11px; color: #486581; }
+
+/* --- Stabilized cursor (stabilize.js) --- */
+/* While our cursor is shown, hide the real one everywhere on the page. */
+html.sm-hide-cursor,
+html.sm-hide-cursor * {
+  cursor: none !important;
+}
+.sm-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2147483647;
+  width: 22px;
+  height: 28px;
+  pointer-events: none; /* never blocks clicks or elementFromPoint */
+  will-change: transform;
+}
+.sm-cursor[hidden] { display: none; }
+.sm-cursor svg { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)); }
+
+/* Line under the badge title showing the current smoothing strength. */
+.sm-badge-strength { margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+/* --- Demo-page trails canvas (viz.js) --- */
+.sm-viz-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+}

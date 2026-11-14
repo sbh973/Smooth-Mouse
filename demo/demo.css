@@ -49,3 +49,13 @@ h3 { font-size: 15px; margin: 16px 0 4px; }
 .hint { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
 .export-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .export-row select { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; background: #fff; }
+
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.check input { width: 20px; height: 20px; accent-color: var(--teal); }
+.legend { font-weight: 700; }
+.legend.raw { color: var(--warn); }
+.legend.steady { color: var(--teal); }
+.metrics { margin: 4px 0 0; display: grid; gap: 4px; }
+.metrics div { display: flex; justify-content: space-between; gap: 8px; background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.metrics dt { color: var(--muted); }
+.metrics dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }

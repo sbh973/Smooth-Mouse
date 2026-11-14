@@ -11,15 +11,17 @@
 
   // 1. Settings (popup toggles) ----------------------------------------------
   // Every feature gets an on/off switch in the popup, stored in storage.local.
-  const DEFAULTS = {
-    enabled: true,               // master switch
-    showBadgeEverywhere: false,  // debug badge on all sites (always on the demo page)
-  };
+  // Defaults live in shared/settings.js (also used by the popup).
+  const DEFAULTS = window.SmoothMouseDefaults;
   SM.settings = { ...DEFAULTS };
 
   function applySettings(values) {
     Object.assign(SM.settings, values);
     SM.enabled = SM.settings.enabled;
+    // Let modules react right away (e.g. bring the real cursor back).
+    for (const fn of SM.settingsListeners || []) {
+      try { fn(SM.settings); } catch (err) { console.error("[Smooth Mouse]", err); }
+    }
   }
 
   api.storage.local.get(DEFAULTS).then(applySettings);

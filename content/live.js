@@ -94,6 +94,7 @@
           <span class="sm-badge-pct"></span>
         </div>`
       ).join("")}
+      <div class="sm-badge-strength"></div>
       <div class="sm-badge-note">Engineering label, not a diagnosis</div>`;
     document.documentElement.appendChild(badge);
     rows = Object.fromEntries(
@@ -115,6 +116,11 @@
       rows[c].fill.style.width = pct + "%";
       rows[c].pct.textContent = pct + "%";
     }
+    const st = SM.stabilize;
+    badge.querySelector(".sm-badge-strength").textContent =
+      st && SM.settings && SM.settings.stabilize
+        ? `Smoothing: ${Math.round(st.strength * 100)}% (${st.level})`
+        : "Smoothing: off";
   }
 
   function hideBadge() {
