@@ -8,9 +8,9 @@
 <body>
   <header>
     <h1>Smooth Mouse</h1>
-    <button id="master" class="switch" role="switch" aria-checked="true" aria-label="Smooth Mouse on or off">
+    <button class="switch" role="switch" aria-checked="true" data-setting="enabled" aria-label="Smooth Mouse on or off">
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-      <span id="master-label">On</span>
+      <span class="switch-text">On</span>
     </button>
   </header>
 
@@ -18,12 +18,22 @@
     <h2 id="debug-title">Live debug</h2>
     <p id="status" class="status" role="status">Connecting to this tab…</p>
     <dl class="stats">
+      <div><dt>Movement right now</dt><dd id="movement">–</dd></div>
       <div><dt>Pointer events / sec</dt><dd id="pps">–</dd></div>
       <div><dt>Clicks</dt><dd id="clicks">–</dd></div>
       <div><dt>Double-clicks</dt><dd id="dblclicks">–</dd></div>
       <div><dt>Keys pressed</dt><dd id="keys">–</dd></div>
       <div><dt>Samples in 3 s buffer</dt><dd id="recent">–</dd></div>
     </dl>
+    <p class="note">Movement labels are engineering labels, not a diagnosis.</p>
+  </section>
+
+  <section aria-labelledby="options-title">
+    <h2 id="options-title">Options</h2>
+    <button class="switch row" role="switch" aria-checked="false" data-setting="showBadgeEverywhere">
+      <span class="switch-label">Debug badge on all sites</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
   </section>
 
   <footer>

@@ -45,11 +45,11 @@
     }
     /** All items with t >= sinceT, oldest first (returns a copy). */
     since(sinceT) {
-      const out = [];
-      for (let i = this.start; i < this.items.length; i++) {
-        if (this.items[i].t >= sinceT) out.push(this.items[i]);
-      }
-      return out;
+      // Walk backwards from the newest item: the live loop asks for the last
+      // ~300 ms 20x per second, so we shouldn't scan the whole 60 s history.
+      let i = this.items.length;
+      while (i > this.start && this.items[i - 1].t >= sinceT) i--;
+      return this.items.slice(i);
     }
     get size() {
       return this.items.length - this.start;

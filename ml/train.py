@@ -143,8 +143,10 @@ def plot_confusion(cm, classes, acc):
 
 
 def plot_feature_distributions(X, y):
-    fig, axes = plt.subplots(2, 3, figsize=(12, 6.5))
-    for k, ax in enumerate(axes.flat):
+    fig, axes = plt.subplots(2, 4, figsize=(15, 6.5))
+    for ax in axes.flat[len(FEATURE_NAMES):]:
+        ax.axis("off")
+    for k, ax in zip(range(len(FEATURE_NAMES)), axes.flat):
         lo, hi = np.percentile(X[:, k], [0.5, 99.5])
         bins = np.linspace(lo, hi + 1e-9, 40)
         for label in CLASSES:
@@ -157,7 +159,7 @@ def plot_feature_distributions(X, y):
     plt.close(fig)
 
 
-def plot_examples(windows, rng):
+def plot_examples(windows, rng, span_ms):
     fig, axes = plt.subplots(3, 4, figsize=(12, 9))
     for r, label in enumerate(CLASSES):
         pool = [w for w in windows if w["label"] == label and len(w["t"]) > 20]
@@ -169,7 +171,7 @@ def plot_examples(windows, rng):
             ax.invert_yaxis()
             ax.set_title(f"{label}: {w['kind']}", fontsize=9)
             ax.tick_params(labelsize=7)
-    fig.suptitle("Example synthetic cursor paths (650 ms each)")
+    fig.suptitle(f"Example synthetic cursor paths ({span_ms:.0f} ms each)")
     fig.tight_layout()
     fig.savefig(PLOTS / "example_windows.png", dpi=160)
     plt.close(fig)
@@ -243,7 +245,7 @@ def main():
 
     plot_confusion(cm, classes, acc)
     plot_feature_distributions(X, y)
-    plot_examples(windows, rng)
+    plot_examples(windows, rng, windows[0]["t_end"])
 
     print(f"\nWrote shared/model.json, shared/fixtures.json ({len(fixture_windows)} fixtures), ml/plots/*.png")
 

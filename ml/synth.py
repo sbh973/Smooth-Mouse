@@ -12,7 +12,7 @@ Labels (engineering labels, NOT medical diagnoses):
   stable     intentional movement: smooth reaches, small corrections, holds,
              slow drags (plus the tiny jitter every hand has)
   unstable   the same movements plus an involuntary oscillation of
-             4-10 Hz and 2-20 px, plus extra noise
+             4-10 Hz and 2-20 px
   uncertain  borderline cases: very small oscillations (0.7-2 px), or fast
              intentional back-and-forth "scribbles" (1.5-3.5 Hz)
 
@@ -185,7 +185,10 @@ def make_window(rng, label, cfg):
     """One labeled example: raw samples plus the time the window ends."""
     span_ms = cfg["windowMs"] + SPAN_EXTRA_MS
     span_s = span_ms / 1000.0
-    noise = rng.uniform(0.05, 0.3)  # tiny everyday jitter
+    # Sensor/hand jitter. IMPORTANT: the same range for every class. An earlier
+    # version gave 'unstable' extra noise, and the model learned "noisy =
+    # unstable" instead of "oscillating = unstable", so smooth real shakes were missed.
+    noise = rng.uniform(0.05, 0.6)
     physio = make_oscillation(rng, (0.0, 0.4), (8, 12))  # tiny normal hand jitter
 
     if label == "stable":
@@ -194,7 +197,6 @@ def make_window(rng, label, cfg):
     elif label == "unstable":
         base, kind = make_base(rng, span_s)
         extra = make_oscillation(rng, (2, 20), (4, 10))
-        noise = rng.uniform(0.3, 1.5)
     else:  # uncertain
         if rng.random() < 0.5:
             base, kind = make_base(rng, span_s)

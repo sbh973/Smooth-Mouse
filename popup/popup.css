@@ -30,3 +30,8 @@ button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
 
 footer { margin-top: 16px; }
 .secondary { width: 100%; border: 1px solid var(--teal); background: #fff; color: var(--teal); font-weight: 600; }
+
+.switch.row { width: 100%; justify-content: space-between; font-weight: 500; }
+.note { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+#movement[data-label="unstable"] { color: var(--warn); }
+#movement[data-label="stable"] { color: var(--teal); }

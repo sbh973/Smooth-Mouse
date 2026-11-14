@@ -21,6 +21,9 @@ Pipeline for one window:
      -> jerk_rms       log(1 + sqrt(mean(jx^2 + jy^2)))
      -> reversals      how often vx or vy flips sign (ignoring near-zero speeds)
      -> hf_ratio       share of velocity power inside the tremor band (4-12 Hz)
+     -> band_amp       log(1 + sqrt(velocity power inside the tremor band)):
+                       HOW STRONG the 4-12 Hz movement is. hf_ratio alone can't
+                       tell a 1 px wobble from a 15 px shake; this can.
 
 Why log(1 + ...)? Speeds and variances range over several orders of magnitude
 (a still cursor vs a fast flick). Logs squash that range so a linear model can
@@ -42,6 +45,7 @@ FEATURE_NAMES = [
     "jerk_rms",
     "reversals",
     "hf_ratio",
+    "band_amp",
 ]
 
 
@@ -50,7 +54,7 @@ def load_config():
 
 
 def window_samples(cfg):
-    """Number of points on the resampled grid (250 ms at 100 Hz -> 25)."""
+    """Number of points on the resampled grid (400 ms at 100 Hz -> 40)."""
     return int(round(cfg["windowMs"] * cfg["sampleRateHz"] / 1000))
 
 
@@ -147,8 +151,9 @@ def compute_features(xr, yr, cfg):
     total = tx + ty
     # A perfectly still cursor has no power at all; call that 0, not 0/0.
     hf_ratio = (bx + by) / total if total > 1e-9 else 0.0
+    band_amp = np.log1p(np.sqrt(bx + by))
 
-    return np.array([mean_speed, speed_var, accel_var, jerk_rms, float(reversals), hf_ratio])
+    return np.array([mean_speed, speed_var, accel_var, jerk_rms, float(reversals), hf_ratio, band_amp])
 
 
 def window_features(t, x, y, t_end, cfg):

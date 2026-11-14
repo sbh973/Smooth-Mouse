@@ -1,3 +1,44 @@
 /* Smooth Mouse in-page styles.
-   Empty for Checkpoint 1; the stabilized cursor, toasts and dialogs land here later.
-   Every class we add is prefixed "sm-" so it never clashes with the host website. */
+   Every class is prefixed "sm-" so it never clashes with the host website,
+   and we reset the basics because website CSS can leak into our elements. */
+
+.sm-badge,
+.sm-badge * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #102A43;
+}
+
+.sm-badge {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  width: 230px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 2px solid #0F766E;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(16, 42, 67, 0.18);
+  pointer-events: none; /* never blocks clicks on the page */
+}
+.sm-badge[hidden] { display: none; }
+.sm-badge[data-label="unstable"] { border-color: #B4441A; }
+.sm-badge[data-label="uncertain"] { border-color: #52606D; }
+
+.sm-badge-title { font-weight: 600; margin-bottom: 6px; }
+.sm-badge-label { font-weight: 800; text-transform: uppercase; }
+
+.sm-badge-row { display: grid; grid-template-columns: 70px 1fr 36px; align-items: center; gap: 6px; margin: 3px 0; }
+.sm-badge-bar { display: block; height: 8px; background: #E4E7EB; border-radius: 4px; overflow: hidden; }
+.sm-badge-fill { display: block; height: 100%; width: 0; background: #0F766E; }
+.sm-badge-row[data-class="uncertain"] .sm-badge-fill { background: #52606D; }
+.sm-badge-row[data-class="unstable"] .sm-badge-fill { background: #B4441A; }
+.sm-badge-pct { text-align: right; font-variant-numeric: tabular-nums; }
+.sm-badge-note { margin-top: 6px; font-size: 11px; color: #486581; }

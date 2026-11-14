@@ -1,7 +1,7 @@
 // main.js — wires the content-script modules together.
 //
 // Jobs right now (Checkpoint 1):
-//   1. Read the master on/off switch from storage.local and keep it in sync.
+//   1. Read the popup settings (master switch, toggles) and keep them in sync.
 //   2. Answer the popup's "give me live stats" messages.
 //   3. Let the demo page ask for an "Export recording" of raw pointer data.
 
@@ -9,15 +9,28 @@
   const api = globalThis.browser ?? globalThis.chrome;
   const SM = window.SmoothMouse;
 
-  // 1. Master on/off --------------------------------------------------------
-  const DEFAULTS = { enabled: true };
+  // 1. Settings (popup toggles) ----------------------------------------------
+  // Every feature gets an on/off switch in the popup, stored in storage.local.
+  const DEFAULTS = {
+    enabled: true,               // master switch
+    showBadgeEverywhere: false,  // debug badge on all sites (always on the demo page)
+  };
+  SM.settings = { ...DEFAULTS };
 
-  api.storage.local.get(DEFAULTS).then((stored) => {
-    SM.enabled = stored.enabled;
-  });
+  function applySettings(values) {
+    Object.assign(SM.settings, values);
+    SM.enabled = SM.settings.enabled;
+  }
+
+  api.storage.local.get(DEFAULTS).then(applySettings);
 
   api.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.enabled) SM.enabled = changes.enabled.newValue;
+    if (area !== "local") return;
+    const updates = {};
+    for (const key of Object.keys(DEFAULTS)) {
+      if (changes[key]) updates[key] = changes[key].newValue;
+    }
+    applySettings(updates);
   });
 
   // 2. Popup messages ------------------------------------------------------
@@ -25,7 +38,13 @@
   // both Firefox and Chrome.
   api.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg && msg.type === "sm:getStats") {
-      sendResponse({ enabled: SM.enabled, ...SM.capture.getStats() });
+      const live = SM.live || {};
+      sendResponse({
+        enabled: SM.enabled,
+        ...SM.capture.getStats(),
+        movement: live.ready ? live.label : null,
+        unstablePct: live.ready ? Math.round(live.probs.unstable * 100) : null,
+      });
     }
   });
 

@@ -1,10 +1,33 @@
-// popup.js — master on/off switch + live debug readout for the current tab.
+// popup.js — on/off switches + live debug readout for the current tab.
 const api = globalThis.browser ?? globalThis.chrome;
 
-const masterBtn = document.getElementById("master");
-const masterLabel = document.getElementById("master-label");
+// --- Switches: every <button data-setting="..."> toggles that key in storage.local.
+// Content scripts listen for storage changes, so pages update immediately.
+const DEFAULTS = { enabled: true, showBadgeEverywhere: false };
+const switches = [...document.querySelectorAll("[data-setting]")];
+
+function showSwitch(btn, on) {
+  btn.setAttribute("aria-checked", String(on));
+  const text = btn.querySelector(".switch-text");
+  if (text) text.textContent = on ? "On" : "Off";
+}
+
+api.storage.local.get(DEFAULTS).then((settings) => {
+  for (const btn of switches) showSwitch(btn, settings[btn.dataset.setting]);
+});
+
+for (const btn of switches) {
+  btn.addEventListener("click", async () => {
+    const next = btn.getAttribute("aria-checked") !== "true";
+    showSwitch(btn, next);
+    await api.storage.local.set({ [btn.dataset.setting]: next });
+  });
+}
+
+// --- Live stats: ask the content script in the active tab twice a second.
 const statusEl = document.getElementById("status");
 const fields = {
+  movement: document.getElementById("movement"),
   pps: document.getElementById("pps"),
   clicks: document.getElementById("clicks"),
   dblclicks: document.getElementById("dblclicks"),
@@ -12,21 +35,6 @@ const fields = {
   recent: document.getElementById("recent"),
 };
 
-// --- Master switch (stored in storage.local; content scripts listen for changes)
-function showEnabled(enabled) {
-  masterBtn.setAttribute("aria-checked", String(enabled));
-  masterLabel.textContent = enabled ? "On" : "Off";
-}
-
-api.storage.local.get({ enabled: true }).then(({ enabled }) => showEnabled(enabled));
-
-masterBtn.addEventListener("click", async () => {
-  const next = masterBtn.getAttribute("aria-checked") !== "true";
-  showEnabled(next);
-  await api.storage.local.set({ enabled: next });
-});
-
-// --- Live stats: ask the content script in the active tab twice a second.
 async function refresh() {
   try {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
@@ -34,6 +42,8 @@ async function refresh() {
     if (!stats) throw new Error("no response");
     statusEl.textContent = stats.enabled ? "Capturing on this tab." : "Paused (switch is off).";
     statusEl.classList.remove("warn");
+    fields.movement.textContent = stats.movement ?? "loading…";
+    fields.movement.dataset.label = stats.movement ?? "";
     fields.pps.textContent = stats.pointerPerSec;
     fields.clicks.textContent = stats.clicks;
     fields.dblclicks.textContent = stats.dblclicks;

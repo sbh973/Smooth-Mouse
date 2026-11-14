@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smooth Mouse parity test</title>
+  <link rel="stylesheet" href="demo.css">
+  <style>
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .summary { font-size: 20px; font-weight: 700; padding: 14px 18px; border-radius: 12px; margin: 12px 0; }
+    .summary.pass { background: #E6F4F1; color: #0F766E; }
+    .summary.fail { background: #FBEAE3; color: #B4441A; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 14px; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #E4E7EB; }
+    th { background: #F0F4F8; }
+    td.num { font-variant-numeric: tabular-nums; }
+    .PASS { color: #0F766E; font-weight: 700; }
+    .FAIL { color: #B4441A; font-weight: 700; }
+    .table-wrap { overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Feature parity test: Python vs JavaScript</h1>
+    <p class="hint">Runs every window in <code>shared/fixtures.json</code> (made by <code>python ml/train.py</code>) through
+      <code>content/features.js</code> and <code>content/model.js</code>, and compares with the values Python computed.
+      Every row must PASS before we trust live predictions.</p>
+    <p id="config-check" class="status"></p>
+    <div id="summary" class="summary" role="status">Running…</div>
+    <div class="table-wrap">
+      <table aria-label="Parity results per fixture">
+        <thead>
+          <tr><th>#</th><th>Kind</th><th>True label</th><th>JS prediction</th>
+              <th>Max feature diff</th><th>Max probability diff</th><th>Result</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p><a href="index.html">← Back to the demo page</a></p>
+  </main>
+
+  <!-- The same files the extension uses, loaded straight from the repo. -->
+  <script src="../content/features.js"></script>
+  <script src="../content/model.js"></script>
+  <script src="parity.js"></script>
+</body>
+</html>

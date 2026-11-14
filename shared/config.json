@@ -2,7 +2,7 @@
   "_comment": "Single source of truth for the window setup. Read by ml/features.py AND content/features.js. Change it here only, then re-run python ml/train.py.",
   "version": 1,
   "sampleRateHz": 100,
-  "windowMs": 250,
+  "windowMs": 400,
   "stepMs": 50,
   "marginMs": 50,
   "tremorBandHz": [4, 12],

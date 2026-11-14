@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 2: Python synthetic data, features and classifier. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 3: JS features, parity test and live inference. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -22,6 +22,10 @@ ml/synth.py          Generates synthetic movement windows
 ml/features.py       Window -> feature vector (mirrored later in content/features.js)
 ml/train.py          Trains, evaluates, exports model + fixtures + charts
 ml/plots/            Charts for the slides
+content/features.js  JavaScript twin of ml/features.py
+content/model.js     Runs model.json in the browser (standardize → logits → softmax)
+content/live.js      Classifies the last 400 ms every 50 ms; debug badge
+demo/parity.html     Checks JS features/probabilities match Python exactly
 ```
 
 ## Load the extension
@@ -97,21 +101,30 @@ python ml/train.py ~/Downloads/smooth-mouse-recording-*.json
 ```
 
 ### How it works
-1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches, small corrections, holds and slow drags. `unstable` = the same plus a 4–10 Hz, 2–20 px oscillation and extra noise. `uncertain` = very small oscillations (0.7–2 px) or fast intentional scribbles. Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps, 0.5 px steps, no event when the cursor doesn't move.
-2. **Windows** (`shared/config.json`). Each window is 250 ms, resampled to 100 Hz (25 points). Live, a new window is classified every 50 ms.
-3. **Features** (`features.py`). Mean speed, speed variance, acceleration variance, jerk RMS (all log-scaled), direction reversals, and the share of velocity power in the 4–12 Hz band (FFT).
+1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches, small corrections, holds and slow drags. `unstable` = the same plus a 4–10 Hz, 2–20 px oscillation. `uncertain` = very small oscillations (0.7–2 px) or fast intentional scribbles. Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps, 0.5 px steps, no event when the cursor doesn't move.
+2. **Windows** (`shared/config.json`). Each window is 400 ms, resampled to 100 Hz (40 points). Live, a new window is classified every 50 ms. We tried 250 ms first, but a 4 Hz tremor only completes one cycle in 250 ms, and accuracy was about 79% vs 88% at 400 ms.
+3. **Features** (`features.py`). Mean speed, speed variance, acceleration variance, jerk RMS (all log-scaled), direction reversals, the *share* of velocity power in the 4–12 Hz band (FFT), and the *strength* of that band (`band_amp`, so a 1 px wobble and a 15 px shake look different).
 4. **Model** (`train.py`). `StandardScaler` + multinomial `LogisticRegression`. It exports to about 30 numbers that JavaScript can run in a few lines.
 
 ### Results (synthetic test set, 1,800 windows)
 | | precision | recall |
 |---|---|---|
-| stable | 0.86 | 0.84 |
-| uncertain | 0.82 | 0.85 |
-| unstable | 0.97 | 0.96 |
+| stable | 0.87 | 0.89 |
+| uncertain | 0.81 | 0.81 |
+| unstable | 0.93 | 0.90 |
 
-**Accuracy: 88.1%** (decision tree for comparison: 87.6%). Most mistakes are stable ↔ uncertain, which only changes smoothing between light and medium. Calm movement is called `unstable` less than 1% of the time, so the cursor shouldn't feel sluggish for steady hands.
+**Accuracy: 86.8%** (decision tree for comparison: 87.8%). Most mistakes involve the borderline `uncertain` class, which only moves smoothing one step (light ↔ medium ↔ strong). Calm movement is called `unstable` 1% of the time, so the cursor shouldn't feel sluggish for steady hands.
+
+**A bug we caught (good story for judges):** our first synthetic `unstable` data also had extra random noise. The model scored 88%, but in a live test it called a smooth, real-looking 6 Hz shake `uncertain`: it had learned "noisy = unstable" instead of "oscillating = unstable." We gave every class the same noise, added the `band_amp` feature and a longer window, and now smooth shakes are caught. Lesson: a high test score on synthetic data can hide a shortcut, so test on realistic inputs too.
 
 > **Honesty note:** these numbers are on *synthetic* data. They show the pipeline works, not that it generalizes to real tremors. That would need testing with real users.
+
+## Test the live classifier (Checkpoint 3)
+
+1. Serve the repo (`python3 -m http.server 5500`) and open <http://localhost:5500/demo/parity.html>. It should say **PASS: all 21 fixtures match Python**. (This page works even without the extension.)
+2. Reload the extension in `about:debugging`, then open <http://localhost:5500/demo/>. A badge appears in the bottom-right corner.
+3. Move calmly: the badge says **STABLE**. Wiggle the mouse quickly back and forth: it switches to **UNSTABLE**. Stop moving: back to STABLE.
+4. The popup's "Movement right now" row shows the same label. The "Debug badge on all sites" switch shows the badge on any website.
 
 ## Privacy
 All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.
