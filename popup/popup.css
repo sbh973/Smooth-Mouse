@@ -1,0 +1,32 @@
+:root {
+  --teal: #0F766E;
+  --ink: #102A43;
+  --bg: #F3F6F7;
+  --muted: #486581;
+  --warn: #B4441A;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; width: 320px; padding: 16px; background: var(--bg); color: var(--ink); font-size: 14px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+h1 { font-size: 18px; margin: 0; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 16px 0 8px; }
+
+button { font: inherit; min-height: 44px; border-radius: 10px; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+.switch { display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #BCCCDC; background: #fff; color: var(--ink); font-weight: 600; }
+.switch-track { width: 40px; height: 22px; border-radius: 11px; background: #9FB3C8; position: relative; transition: background .15s; }
+.switch-thumb { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch[aria-checked="true"] .switch-track { background: var(--teal); }
+.switch[aria-checked="true"] .switch-thumb { left: 21px; }
+
+.status { margin: 0 0 8px; color: var(--muted); }
+.status.warn { color: var(--warn); }
+.stats { margin: 0; display: grid; gap: 4px; }
+.stats div { display: flex; justify-content: space-between; background: #fff; border-radius: 8px; padding: 8px 10px; }
+.stats dt { color: var(--muted); }
+.stats dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+footer { margin-top: 16px; }
+.secondary { width: 100%; border: 1px solid var(--teal); background: #fff; color: var(--teal); font-weight: 600; }

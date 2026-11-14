@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Smooth Mouse</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Smooth Mouse</h1>
+    <button id="master" class="switch" role="switch" aria-checked="true" aria-label="Smooth Mouse on or off">
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+      <span id="master-label">On</span>
+    </button>
+  </header>
+
+  <section aria-labelledby="debug-title">
+    <h2 id="debug-title">Live debug</h2>
+    <p id="status" class="status" role="status">Connecting to this tab…</p>
+    <dl class="stats">
+      <div><dt>Pointer events / sec</dt><dd id="pps">–</dd></div>
+      <div><dt>Clicks</dt><dd id="clicks">–</dd></div>
+      <div><dt>Double-clicks</dt><dd id="dblclicks">–</dd></div>
+      <div><dt>Keys pressed</dt><dd id="keys">–</dd></div>
+      <div><dt>Samples in 3 s buffer</dt><dd id="recent">–</dd></div>
+    </dl>
+  </section>
+
+  <footer>
+    <button id="calibrate" class="secondary">Calibrate (coming soon)</button>
+  </footer>
+  <script src="popup.js"></script>
+</body>
+</html>

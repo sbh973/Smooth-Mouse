@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Tells the Smooth Mouse content script this page may request recordings. -->
+  <meta name="smooth-mouse-demo" content="1">
+  <title>Smooth Mouse demo: compose email</title>
+  <link rel="stylesheet" href="demo.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="logo">Mailbox</span>
+    <label class="search">
+      <span class="visually-hidden">Search mail</span>
+      <input type="search" placeholder="Search mail">
+    </label>
+    <!-- Deliberately tiny icon buttons: realistic, hard-to-hit targets. -->
+    <button class="tiny" aria-label="Settings" title="Settings">⚙</button>
+    <button class="tiny" aria-label="Help" title="Help">?</button>
+  </header>
+
+  <main class="layout">
+    <form id="compose" class="card compose" aria-labelledby="compose-title" autocomplete="off">
+      <h1 id="compose-title">New message</h1>
+
+      <label class="field">
+        <span>To</span>
+        <input id="to" type="text" value="dr.rivera@example.com">
+      </label>
+      <label class="field">
+        <span>Subject</span>
+        <input id="subject" type="text" value="Follow-up appointment">
+      </label>
+
+      <!-- Small formatting toolbar: mixed-size targets on purpose. -->
+      <div class="toolbar" role="toolbar" aria-label="Formatting">
+        <button type="button" class="small" aria-label="Bold"><b>B</b></button>
+        <button type="button" class="small" aria-label="Italic"><i>I</i></button>
+        <button type="button" class="small" aria-label="Underline"><u>U</u></button>
+        <button type="button" class="small" aria-label="Insert link">🔗</button>
+        <button type="button" class="small" aria-label="Attach file">📎</button>
+      </div>
+
+      <label class="field">
+        <span class="visually-hidden">Message body</span>
+        <textarea id="body" rows="8">Hi Dr. Rivera,
+
+Could we move my appointment to next Thursday afternoon?
+
+Thanks!</textarea>
+      </label>
+
+      <div class="actions">
+        <button type="submit" id="send" class="btn primary">Send</button>
+        <button type="button" id="save" class="btn">Save draft</button>
+        <span class="spacer"></span>
+        <button type="button" id="delete" class="btn danger">Delete draft</button>
+      </div>
+      <p id="compose-status" class="status" role="status" aria-live="polite"></p>
+    </form>
+
+    <aside class="card tools" aria-labelledby="tools-title">
+      <h2 id="tools-title">Smooth Mouse tools</h2>
+      <p id="ext-status" class="status">Looking for the Smooth Mouse extension…</p>
+
+      <h3>Export recording</h3>
+      <p class="hint">Downloads raw pointer events (x, y, time) from this page as JSON for analysis in Python. Keystrokes are never included.</p>
+      <div class="export-row">
+        <label for="export-seconds">Last</label>
+        <select id="export-seconds">
+          <option value="5">5 s</option>
+          <option value="10" selected>10 s</option>
+          <option value="30">30 s</option>
+          <option value="60">60 s</option>
+        </select>
+        <button type="button" id="export" class="btn primary">Export recording</button>
+      </div>
+      <p id="export-status" class="status" role="status" aria-live="polite"></p>
+    </aside>
+  </main>
+
+  <script src="demo.js"></script>
+</body>
+</html>

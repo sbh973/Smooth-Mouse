@@ -1,0 +1,12 @@
+# Secrets: never commit the real Gemini key
+.env
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+.vscode/
