@@ -28,6 +28,7 @@ for (const btn of switches) {
 const statusEl = document.getElementById("status");
 const fields = {
   movement: document.getElementById("movement"),
+  modelKind: document.getElementById("model-kind"),
   pps: document.getElementById("pps"),
   clicks: document.getElementById("clicks"),
   dblclicks: document.getElementById("dblclicks"),
@@ -44,6 +45,7 @@ async function refresh() {
     statusEl.classList.remove("warn");
     fields.movement.textContent = stats.movement ?? "loading…";
     fields.movement.dataset.label = stats.movement ?? "";
+    fields.modelKind.textContent = stats.modelKind ?? "loading…";
     fields.pps.textContent = stats.pointerPerSec;
     fields.clicks.textContent = stats.clicks;
     fields.dblclicks.textContent = stats.dblclicks;
@@ -63,4 +65,15 @@ setInterval(refresh, 500);
 document.getElementById("calibrate").addEventListener("click", () => {
   api.tabs.create({ url: api.runtime.getURL("calibrate/calibrate.html") });
   window.close();
+});
+
+// --- When was the last calibration?
+api.storage.local.get({ profile: null }).then(({ profile }) => {
+  const info = document.getElementById("calibration-info");
+  if (!profile) {
+    info.textContent = "Not calibrated yet. Calibrating tunes Smooth Mouse to your hand.";
+    return;
+  }
+  const when = new Date(profile.calibratedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  info.textContent = `Calibrated ${when}` + (profile.personalModel ? " (personal model)." : " (default model, tuned settings).");
 });

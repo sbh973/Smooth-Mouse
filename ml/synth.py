@@ -192,7 +192,12 @@ def sample_like_browser(rng, f, span_ms, noise_px):
     return t[moved], x[moved], y[moved]
 
 
-def make_window(rng, label, cfg):
+# Default involuntary-oscillation ranges for the "unstable" class.
+UNSTABLE_AMP = (2, 20)   # px
+UNSTABLE_FREQ = (4, 10)  # Hz
+
+
+def make_window(rng, label, cfg, unstable_amp=UNSTABLE_AMP, unstable_freq=UNSTABLE_FREQ):
     """One labeled example: raw samples plus the time the window ends."""
     span_ms = cfg["windowMs"] + SPAN_EXTRA_MS
     span_s = span_ms / 1000.0
@@ -207,7 +212,7 @@ def make_window(rng, label, cfg):
         extra = physio
     elif label == "unstable":
         base, kind = make_base(rng, span_s)
-        extra = make_oscillation(rng, (2, 20), (4, 10))
+        extra = make_oscillation(rng, unstable_amp, unstable_freq)
     else:  # uncertain
         if rng.random() < 0.5:
             base, kind = make_base(rng, span_s)

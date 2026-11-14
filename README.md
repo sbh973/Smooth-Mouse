@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 4: adaptive controller and stabilized cursor. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 5: calibration, personal model and Gemini explanations. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -31,6 +31,10 @@ content/controller.js Model probabilities → smoothing strength (hysteresis, sl
 content/stabilize.js Steady cursor, hides the real one while smoothing, redirects clicks
 content/viz.js       Demo page: raw vs stabilized trails, jitter and lag metrics
 shared/settings.js   Default values for every popup toggle
+calibrate/           1-minute calibration: hold, click, type → profile + personal model
+ml/personalize.py    Retrains the classifier on one user's calibration data
+ml/server.py         Local FastAPI server (localhost:8000): /calibrate, /gemini/explain
+ml/gemini.py         Gemini API calls (key stays in .env on this computer)
 ```
 
 ## Load the extension
@@ -171,6 +175,39 @@ model probabilities ──► controller ──► smoothing strength 0..1
 3. Shake the mouse: smoothing climbs to *strong*, the cursor becomes our drawn arrow, the teal (steady) trail is much calmer than the orange (raw) one, and *Jitter* shows a big reduction.
 4. While shaking, click **Send**: the click goes to whatever the *steady* cursor is on.
 5. Every part has a popup toggle: *Stabilize cursor* and *Click where the steady cursor is*.
+
+## Calibration and personal model (Checkpoint 5)
+
+### Start the local server (optional, but needed for the personal model and Gemini)
+```bash
+cd ~/SmoothMouse/Smooth-Mouse
+source .venv/bin/activate
+cp .env.example .env        # first time only; then put your Gemini key in .env
+python ml/server.py         # leave this terminal open; Ctrl+C stops it
+```
+It listens only on `127.0.0.1:8000`. The first start builds a cache of the base training data (about a minute); after that it starts in a second or two. **The extension works without it.**
+
+### What calibration does
+Open the popup → **Calibrate (1 minute)**:
+1. **Hold** the cursor on a dot for 10 s → resting fluctuation size (px) and frequency (times per second).
+2. **Click 10 targets** of different sizes → real reaching movement, misses, accidental double-clicks, how much the cursor drifts during a press.
+3. **Type a sentence** → typing rhythm and accidental double key presses (the sentence has no doubled letters, so any double is accidental).
+
+Then:
+- **A profile** is computed in the browser (always works): key-repeat window, double-click window, magnet radius and shaky-press threshold. These are used by Checkpoint 6.
+- **A personal model** is trained by the server in about 1–2 s (`ml/personalize.py`):
+  - Your 10 s hold is the yardstick. If your cursor stays steady (< 1.5 px), everything you did during calibration was intentional, so all of it becomes `stable` training data. This fixes "my normal fast movement shows as unstable."
+  - If you have a measurable wobble, your hold windows become real `unstable` examples. Reach windows much calmer than your hold become `stable`.
+  - Extra synthetic `unstable` data is generated at **your** measured size and frequency.
+  - Weights: your real windows ×4, personalized synthetic ×2, base data ×1.
+  - The results screen shows before vs after on your own movement, e.g. *"calm movements flagged as unstable: 31% with the default model → 3% with your personal model"*.
+- **Gemini** turns the summary numbers into a short, plain-language explanation, tagged *Explained by Gemini*. If Gemini is off, slow (> 10 s) or failing, you get a pre-written explanation instead.
+- Everything is saved in `storage.local` and used on every page right away. The popup shows **Model in use: personal / default** and has a **Use my personal model** switch.
+
+**Without the server:** calibration still finishes, the profile is still tuned to you, and the results say *"Personal model needs the local ML server. Using the default model."*
+
+### Gemini setup
+Put your key in `.env` (never in `.env.example`, which is committed): `GEMINI_API_KEY=...`. We use `gemini-3.6-flash` (about 1 s per answer in our tests), and `gemini-3.5-flash` is tried automatically if it's busy. The newest model, `gemini-3.8-flash`, returned "high demand" errors when we tested. **Gemini only ever receives summary numbers**, such as "7 px, 6 times a second, 3 missed clicks". It never receives raw movement, keystrokes or typed text.
 
 ## Privacy
 All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.

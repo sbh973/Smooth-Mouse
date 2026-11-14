@@ -31,11 +31,31 @@
   // real, sustained shake still takes over within ~100-150 ms.
   const SMOOTHING = 0.4;
 
-  async function loadBaseModel() {
-    // TODO (Checkpoint 5): prefer the personal model saved in storage.local.
+  /**
+   * The personal model from calibration (saved in storage.local) if there is
+   * one and the popup switch allows it; otherwise the bundled default model.
+   */
+  async function loadModel() {
+    const { personalModel, usePersonalModel } = await api.storage.local.get({
+      personalModel: null,
+      usePersonalModel: true,
+    });
+    const compatible =
+      personalModel &&
+      personalModel.format === "smooth-mouse-logreg-v1" &&
+      personalModel.featureNames.join() === SM.features.FEATURE_NAMES.join();
+    if (usePersonalModel && compatible) return personalModel;
     const res = await fetch(api.runtime.getURL("shared/model.json"));
     return res.json();
   }
+
+  // Swap models live when calibration finishes or the popup switch changes.
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !(changes.personalModel || changes.usePersonalModel)) return;
+    loadModel()
+      .then((model) => { live.model = model; })
+      .catch((err) => console.warn("[Smooth Mouse] could not reload model:", err));
+  });
 
   function tick() {
     if (!SM.enabled || document.hidden) {
@@ -128,7 +148,7 @@
   }
 
   // --- Start ------------------------------------------------------------------
-  loadBaseModel()
+  loadModel()
     .then((model) => {
       live.model = model;
       live.ready = true;

@@ -34,6 +34,7 @@ from synth import CLASSES, generate_dataset
 SEED = 42
 N_PER_CLASS = 3000
 PLOTS = ROOT / "ml" / "plots"
+CACHE = ROOT / "ml" / "cache" / "base_dataset.npz"  # git-ignored
 COLORS = {"stable": "#0F766E", "unstable": "#B4441A", "uncertain": "#6B7C93"}
 
 
@@ -43,8 +44,8 @@ def build_features(windows, cfg):
     return X, y
 
 
-def export_model(pipe, cfg, metrics):
-    """Write the model as plain numbers so JavaScript can run it in a few lines.
+def model_to_dict(pipe, cfg, metrics, trained_on="synthetic"):
+    """The model as plain numbers so JavaScript can run it in a few lines.
 
     In the browser, prediction is:
         z      = (features - scaler.mean) / scaler.scale      # standardize
@@ -53,10 +54,10 @@ def export_model(pipe, cfg, metrics):
     """
     scaler = pipe.named_steps["scaler"]
     clf = pipe.named_steps["clf"]
-    model = {
+    return {
         "format": "smooth-mouse-logreg-v1",
         "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "trainedOn": "synthetic",
+        "trainedOn": trained_on,
         "classes": [str(c) for c in clf.classes_],  # order matches coef/intercept rows
         "featureNames": FEATURE_NAMES,
         "scaler": {"mean": scaler.mean_.tolist(), "scale": scaler.scale_.tolist()},
@@ -65,6 +66,10 @@ def export_model(pipe, cfg, metrics):
         "config": cfg,  # the window settings the model was trained with
         "metrics": metrics,
     }
+
+
+def export_model(pipe, cfg, metrics):
+    model = model_to_dict(pipe, cfg, metrics)
     (ROOT / "shared" / "model.json").write_text(json.dumps(model, indent=2))
 
 
@@ -206,6 +211,9 @@ def main():
     print(f"Generating {N_PER_CLASS} synthetic windows per class...")
     windows = generate_dataset(N_PER_CLASS, cfg, seed=SEED)
     X, y = build_features(windows, cfg)
+    # Cache the base dataset so the calibration server can retrain in seconds.
+    CACHE.parent.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(CACHE, X=X, y=y, config=json.dumps(cfg))
 
     idx = np.arange(len(y))
     train_idx, test_idx = train_test_split(idx, test_size=0.2, stratify=y, random_state=SEED)

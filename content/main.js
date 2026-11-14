@@ -45,6 +45,7 @@
         enabled: SM.enabled,
         ...SM.capture.getStats(),
         movement: live.ready ? live.label : null,
+        modelKind: live.model ? (live.model.trainedOn === "synthetic+personal" ? "personal" : "default") : null,
         unstablePct: live.ready ? Math.round(live.probs.unstable * 100) : null,
       });
     }

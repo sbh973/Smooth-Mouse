@@ -4,18 +4,96 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Smooth Mouse calibration</title>
-  <style>
-    body { margin: 0; padding: 48px 16px; background: #F3F6F7; color: #102A43;
-           font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    main { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 32px; }
-    h1 { margin-top: 0; }
-  </style>
+  <link rel="stylesheet" href="calibrate.css">
 </head>
 <body>
   <main>
-    <h1>Calibration</h1>
-    <p>The about one-minute calibration (hold, click targets, type a sentence) arrives in Checkpoint 5.</p>
-    <p>This page confirms that extension pages load correctly.</p>
+    <header class="top">
+      <h1>Calibrate Smooth Mouse</h1>
+      <ol class="steps" aria-label="Calibration progress">
+        <li data-step="1">Hold</li>
+        <li data-step="2">Click</li>
+        <li data-step="3">Type</li>
+        <li data-step="4">Results</li>
+      </ol>
+      <div class="progress" role="progressbar" aria-label="Calibration progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </header>
+
+    <!-- Intro -->
+    <section class="card" id="screen-intro" aria-labelledby="intro-title">
+      <h2 id="intro-title">About one minute, three short steps</h2>
+      <ol class="intro-list">
+        <li><strong>Hold</strong> your cursor on a dot for 10 seconds.</li>
+        <li><strong>Click</strong> 10 targets of different sizes.</li>
+        <li><strong>Type</strong> one short sentence.</li>
+      </ol>
+      <p>Smooth Mouse uses this to fit its settings to your hand. Your movement data stays on this computer.
+         If Gemini is on, it only receives a few summary numbers to explain your results.</p>
+      <p id="server-status" class="status" role="status">Checking for the local ML server…</p>
+      <button class="primary" id="start">Start calibration</button>
+    </section>
+
+    <!-- Step 1: hold -->
+    <section class="card" id="screen-hold" hidden aria-labelledby="hold-title">
+      <h2 id="hold-title">Step 1 of 3: Hold</h2>
+      <p id="hold-instructions">Move your cursor onto the dot and rest it there. The timer starts when you reach the dot.</p>
+      <div class="arena" id="hold-arena">
+        <div class="hold-dot" id="hold-dot" aria-hidden="true"></div>
+        <div class="hold-timer" id="hold-timer" aria-live="polite">10</div>
+      </div>
+      <button class="link" data-skip="hold">Skip this step</button>
+    </section>
+
+    <!-- Step 2: click targets -->
+    <section class="card" id="screen-click" hidden aria-labelledby="click-title">
+      <h2 id="click-title">Step 2 of 3: Click the targets</h2>
+      <p>Click each circle as it appears, at your normal pace. <span id="click-count" aria-live="polite">0 of 10</span></p>
+      <div class="arena" id="click-arena"></div>
+      <button class="link" data-skip="click">Skip this step</button>
+    </section>
+
+    <!-- Step 3: type -->
+    <section class="card" id="screen-type" hidden aria-labelledby="type-title">
+      <h2 id="type-title">Step 3 of 3: Type a sentence</h2>
+      <p>Type this sentence, then press <strong>Continue</strong>. Typos are fine.</p>
+      <p class="sentence" id="sentence">the quick brown fox jumps over the lazy dog</p>
+      <label class="visually-hidden" for="type-box">Type the sentence here</label>
+      <input id="type-box" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="row">
+        <button class="primary" id="type-done">Continue</button>
+        <button class="link" data-skip="type">Skip this step</button>
+      </div>
+    </section>
+
+    <!-- Working -->
+    <section class="card" id="screen-working" hidden aria-labelledby="working-title">
+      <h2 id="working-title">Personalizing your model…</h2>
+      <p id="working-detail" role="status">Retraining the movement classifier on your data. This takes a few seconds.</p>
+    </section>
+
+    <!-- Results -->
+    <section class="card" id="screen-results" hidden aria-labelledby="results-title">
+      <h2 id="results-title">Your results</h2>
+      <div class="explain" id="explain">
+        <p id="explain-text"></p>
+        <span class="tag" id="explain-tag"></span>
+      </div>
+      <h3>What we measured</h3>
+      <ul class="facts" id="facts"></ul>
+      <h3>Your settings</h3>
+      <ul class="facts" id="settings"></ul>
+      <p id="model-status" class="status"></p>
+      <p class="note">Smooth Mouse labels movement as <em>stable</em>, <em>uncertain</em> or <em>unstable</em>.
+        These are engineering labels for cursor movement, not a medical diagnosis.</p>
+      <div class="row">
+        <button class="primary" id="finish">Done</button>
+        <button class="secondary" id="again">Calibrate again</button>
+      </div>
+    </section>
   </main>
+  <script src="../shared/settings.js"></script>
+  <script src="calibrate.js"></script>
 </body>
 </html>

@@ -5,5 +5,6 @@ window.SmoothMouseDefaults = {
   enabled: true,              // master switch
   stabilize: true,            // adaptive cursor stabilization (Checkpoint 4)
   redirectClicks: true,       // clicks land where the steady cursor is
+  usePersonalModel: true,     // use the model trained during calibration (Checkpoint 5)
   showBadgeEverywhere: false, // debug badge on all sites (always on the demo page)
 };

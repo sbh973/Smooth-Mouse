@@ -19,6 +19,7 @@
     <p id="status" class="status" role="status">Connecting to this tab…</p>
     <dl class="stats">
       <div><dt>Movement right now</dt><dd id="movement">–</dd></div>
+      <div><dt>Model in use</dt><dd id="model-kind">–</dd></div>
       <div><dt>Pointer events / sec</dt><dd id="pps">–</dd></div>
       <div><dt>Clicks</dt><dd id="clicks">–</dd></div>
       <div><dt>Double-clicks</dt><dd id="dblclicks">–</dd></div>
@@ -38,6 +39,10 @@
       <span class="switch-label">Click where the steady cursor is</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
     </button>
+    <button class="switch row" role="switch" aria-checked="true" data-setting="usePersonalModel">
+      <span class="switch-label">Use my personal model</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
     <button class="switch row" role="switch" aria-checked="false" data-setting="showBadgeEverywhere">
       <span class="switch-label">Debug badge on all sites</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
@@ -45,7 +50,8 @@
   </section>
 
   <footer>
-    <button id="calibrate" class="secondary">Calibrate (coming soon)</button>
+    <p id="calibration-info" class="note"></p>
+    <button id="calibrate" class="secondary">Calibrate (1 minute)</button>
   </footer>
   <script src="../shared/settings.js"></script>
   <script src="popup.js"></script>
