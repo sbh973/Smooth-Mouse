@@ -46,11 +46,16 @@ def min_jerk(s):
 def make_reach(rng, span_s, start=None):
     """One point-to-point reach (like moving to a button), slightly curved."""
     p0 = rng.uniform([100, 100], [1200, 700]) if start is None else start
-    dist = np.exp(rng.uniform(np.log(15), np.log(900)))  # many short + some long
+    dist = np.exp(rng.uniform(np.log(15), np.log(1400)))  # many short + some long
     angle = rng.uniform(0, 2 * np.pi)
     direction = np.array([np.cos(angle), np.sin(angle)])
     normal = np.array([-direction[1], direction[0]])
-    duration = rng.uniform(0.18, 0.9) * (dist / 300) ** 0.25  # longer reaches take a bit longer
+    # Pick the PEAK SPEED first: real people flick the mouse at up to several
+    # thousand px/s (we measured 3,000+ in a real recording). A minimum-jerk
+    # reach peaks at 1.875 * dist / duration. Without fast flicks in the
+    # training data, the model called normal fast movement "unstable".
+    peak_speed = np.exp(rng.uniform(np.log(80), np.log(9000)))
+    duration = float(np.clip(1.875 * dist / peak_speed, 0.08, 1.5))
     onset = rng.uniform(-duration, span_s)  # window may catch any phase of the reach
     curve = rng.normal(0, 0.08) * dist
 
@@ -65,13 +70,16 @@ def make_reach(rng, span_s, start=None):
 
 
 def make_reach_with_correction(rng, span_s):
-    """A reach followed by a small corrective sub-movement (very common in real use)."""
+    """A reach followed by a corrective sub-movement (very common in real use).
+
+    Fast reaches often overshoot and come back a little, so the correction
+    can point back the way we came. It may overlap the end of the reach.
+    """
     first, end_time = make_reach(rng, span_s)
-    # A 3-15 px correction starting just after the main reach ends.
-    scale = rng.uniform(3, 15)
+    scale = rng.uniform(3, 40)
     angle = rng.uniform(0, 2 * np.pi)
-    c_dur = rng.uniform(0.12, 0.3)
-    c_onset = end_time + rng.uniform(0.0, 0.15)
+    c_dur = rng.uniform(0.1, 0.3)
+    c_onset = end_time + rng.uniform(-0.08, 0.15)
 
     def f(t):
         x, y = first(t)
@@ -170,7 +178,10 @@ def sample_like_browser(rng, f, span_ms, noise_px):
     dup = rng.random(len(t)) < 0.01
     t[1:][dup[1:]] = t[:-1][dup[1:]]
 
-    x, y = f(t / 1000.0)
+    # Reported timestamps are rounded and a little off from when the position
+    # was really measured; that adds realistic velocity noise during fast moves.
+    true_t = t + rng.uniform(-1.5, 1.5, len(t))
+    x, y = f(true_t / 1000.0)
     x = x + rng.normal(0, noise_px, len(t))
     y = y + rng.normal(0, noise_px, len(t))
     x, y = np.round(x * 2) / 2, np.round(y * 2) / 2  # 0.5 px steps

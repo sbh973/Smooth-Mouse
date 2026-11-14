@@ -143,7 +143,7 @@ def plot_confusion(cm, classes, acc):
 
 
 def plot_feature_distributions(X, y):
-    fig, axes = plt.subplots(2, 4, figsize=(15, 6.5))
+    fig, axes = plt.subplots(2, 5, figsize=(18, 6.5))
     for ax in axes.flat[len(FEATURE_NAMES):]:
         ax.axis("off")
     for k, ax in zip(range(len(FEATURE_NAMES)), axes.flat):

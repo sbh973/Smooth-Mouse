@@ -24,6 +24,15 @@ Pipeline for one window:
      -> band_amp       log(1 + sqrt(velocity power inside the tremor band)):
                        HOW STRONG the 4-12 Hz movement is. hf_ratio alone can't
                        tell a 1 px wobble from a 15 px shake; this can.
+     -> straightness   net distance / (path length + 1 px). A deliberate flick
+                       goes one way (close to 1); a shake goes back and forth and
+                       ends up near where it started (close to 0). This is what
+                       stops fast, normal movement from looking "unstable".
+     -> wobble         band_amp * (1 - straightness): tremor-band energy that
+                       goes back and forth without getting anywhere
+     -> travel         mean_speed * straightness: speed that is heading somewhere
+                       (These two "combined" features let a simple linear model
+                       learn "fast AND straight = intentional".)
 
 Why log(1 + ...)? Speeds and variances range over several orders of magnitude
 (a still cursor vs a fast flick). Logs squash that range so a linear model can
@@ -46,6 +55,9 @@ FEATURE_NAMES = [
     "reversals",
     "hf_ratio",
     "band_amp",
+    "straightness",
+    "wobble",
+    "travel",
 ]
 
 
@@ -153,7 +165,21 @@ def compute_features(xr, yr, cfg):
     hf_ratio = (bx + by) / total if total > 1e-9 else 0.0
     band_amp = np.log1p(np.sqrt(bx + by))
 
-    return np.array([mean_speed, speed_var, accel_var, jerk_rms, float(reversals), hf_ratio, band_amp])
+    # Path length = sum of the little steps; net = start-to-end distance.
+    # The +1 px keeps a still cursor (path ~ 0) well defined.
+    steps = np.sqrt(np.diff(xr) ** 2 + np.diff(yr) ** 2)
+    path = 0.0
+    for step in steps:  # plain loop so JS can add in exactly the same order
+        path += step
+    net = np.sqrt((xr[-1] - xr[0]) ** 2 + (yr[-1] - yr[0]) ** 2)
+    straightness = net / (path + 1.0)
+    wobble = band_amp * (1.0 - straightness)
+    travel = mean_speed * straightness
+
+    return np.array([
+        mean_speed, speed_var, accel_var, jerk_rms, float(reversals),
+        hf_ratio, band_amp, straightness, wobble, travel,
+    ])
 
 
 def window_features(t, x, y, t_end, cfg):

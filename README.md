@@ -101,21 +101,23 @@ python ml/train.py ~/Downloads/smooth-mouse-recording-*.json
 ```
 
 ### How it works
-1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches, small corrections, holds and slow drags. `unstable` = the same plus a 4–10 Hz, 2–20 px oscillation. `uncertain` = very small oscillations (0.7–2 px) or fast intentional scribbles. Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps, 0.5 px steps, no event when the cursor doesn't move.
+1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches (from slow moves up to fast 9,000 px/s flicks), overshoot corrections, holds and slow drags. `unstable` = the same plus a 4–10 Hz, 2–20 px oscillation. `uncertain` = very small oscillations (0.7–2 px) or fast intentional scribbles. Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps with ±1.5 ms jitter, 0.5 px steps, no event when the cursor doesn't move.
 2. **Windows** (`shared/config.json`). Each window is 400 ms, resampled to 100 Hz (40 points). Live, a new window is classified every 50 ms. We tried 250 ms first, but a 4 Hz tremor only completes one cycle in 250 ms, and accuracy was about 79% vs 88% at 400 ms.
-3. **Features** (`features.py`). Mean speed, speed variance, acceleration variance, jerk RMS (all log-scaled), direction reversals, the *share* of velocity power in the 4–12 Hz band (FFT), and the *strength* of that band (`band_amp`, so a 1 px wobble and a 15 px shake look different).
+3. **Features** (`features.py`). Mean speed, speed variance, acceleration variance, jerk RMS (all log-scaled), direction reversals, the *share* of velocity power in the 4–12 Hz band (FFT), the *strength* of that band (`band_amp`, so a 1 px wobble and a 15 px shake look different), `straightness` (net distance ÷ path length: a flick ≈ 1, a shake ≈ 0), and two combined features, `wobble` = band strength × (1 − straightness) and `travel` = speed × straightness, which let a linear model learn "fast **and** straight = intentional".
 4. **Model** (`train.py`). `StandardScaler` + multinomial `LogisticRegression`. It exports to about 30 numbers that JavaScript can run in a few lines.
 
 ### Results (synthetic test set, 1,800 windows)
 | | precision | recall |
 |---|---|---|
-| stable | 0.87 | 0.89 |
-| uncertain | 0.81 | 0.81 |
-| unstable | 0.93 | 0.90 |
+| stable | 0.85 | 0.91 |
+| uncertain | 0.81 | 0.78 |
+| unstable | 0.91 | 0.88 |
 
-**Accuracy: 86.8%** (decision tree for comparison: 87.8%). Most mistakes involve the borderline `uncertain` class, which only moves smoothing one step (light ↔ medium ↔ strong). Calm movement is called `unstable` 1% of the time, so the cursor shouldn't feel sluggish for steady hands.
+**Accuracy: 85.6%** (decision tree for comparison: 87.1%). Most mistakes involve the borderline `uncertain` class, which only moves smoothing one step (light ↔ medium ↔ strong). Calm movement (including fast flicks) is called `unstable` about 2% of the time, and live predictions are smoothed over a few windows so a single odd window can't flip the label.
 
 **A bug we caught (good story for judges):** our first synthetic `unstable` data also had extra random noise. The model scored 88%, but in a live test it called a smooth, real-looking 6 Hz shake `uncertain`: it had learned "noisy = unstable" instead of "oscillating = unstable." We gave every class the same noise, added the `band_amp` feature and a longer window, and now smooth shakes are caught. Lesson: a high test score on synthetic data can hide a shortcut, so test on realistic inputs too.
+
+**A second one, found by a real user:** normal, fast mouse movement showed as `unstable`. Our synthetic "calm" reaches maxed out around 1,500 px/s, but real flicks reach 3,000–9,000 px/s, and a fast flick has the same high acceleration as a shake. We added fast flicks and overshoots to the training data, plus the `straightness` / `wobble` / `travel` features. Now simulated 800 px flicks in 180 ms read `stable`, while 5–6 Hz shakes still read `unstable`.
 
 > **Honesty note:** these numbers are on *synthetic* data. They show the pipeline works, not that it generalizes to real tremors. That would need testing with real users.
 

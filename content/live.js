@@ -13,7 +13,8 @@
   const live = (SM.live = {
     ready: false,
     label: "stable",
-    probs: { stable: 1, uncertain: 0, unstable: 0 },
+    probs: { stable: 1, uncertain: 0, unstable: 0 },    // smoothed (what everything uses)
+    rawProbs: { stable: 1, uncertain: 0, unstable: 0 }, // this window only
     features: null,
     updatedAt: 0,
     model: null,
@@ -24,6 +25,11 @@
       return () => this.listeners.delete(fn);
     },
   });
+
+  // Each new window gets this much weight; the rest comes from earlier windows.
+  // 0.4 means one odd 50 ms window can't flip the label on its own, while a
+  // real, sustained shake still takes over within ~100-150 ms.
+  const SMOOTHING = 0.4;
 
   async function loadBaseModel() {
     // TODO (Checkpoint 5): prefer the personal model saved in storage.local.
@@ -51,8 +57,15 @@
       now,
       cfg
     );
-    const { label, probs } = SM.model.predict(live.model, features);
-    Object.assign(live, { label, probs, features, updatedAt: now });
+    const raw = SM.model.predict(live.model, features).probs;
+
+    const probs = {};
+    let label = "stable";
+    for (const c of live.model.classes) {
+      probs[c] = SMOOTHING * raw[c] + (1 - SMOOTHING) * (live.probs[c] ?? 0);
+      if (probs[c] > (probs[label] ?? -1)) label = c;
+    }
+    Object.assign(live, { label, probs, rawProbs: raw, features, updatedAt: now });
 
     for (const fn of live.listeners) {
       try { fn(live); } catch (err) { console.error("[Smooth Mouse]", err); }

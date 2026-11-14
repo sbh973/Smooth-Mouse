@@ -13,11 +13,15 @@
 //        reversals    sign flips of vx / vy, ignoring slow speeds
 //        hf_ratio     share of velocity power in the 4-12 Hz tremor band
 //        band_amp     log(1 + sqrt(band power)): how STRONG the 4-12 Hz movement is
+//        straightness net distance / (path length + 1 px): flick ~1, shake ~0
+//        wobble       band_amp * (1 - straightness)
+//        travel       mean_speed * straightness
 
 (() => {
   const SM = (window.SmoothMouse = window.SmoothMouse || {});
 
-  const FEATURE_NAMES = ["mean_speed", "speed_var", "accel_var", "jerk_rms", "reversals", "hf_ratio", "band_amp"];
+  const FEATURE_NAMES = ["mean_speed", "speed_var", "accel_var", "jerk_rms", "reversals", "hf_ratio", "band_amp",
+    "straightness", "wobble", "travel"];
 
   function windowSamples(cfg) {
     // Python: int(round(windowMs * rate / 1000)). Our values are never x.5, so Math.round matches.
@@ -150,7 +154,18 @@
     const hfRatio = total > 1e-9 ? (bx + by) / total : 0;
     const bandAmp = Math.log1p(Math.sqrt(bx + by));
 
-    return [meanSpeed, speedVar, accelVar, jerkRms, reversals, hfRatio, bandAmp];
+    // Path length (sum of steps, added in order like Python) vs start-to-end distance.
+    let path = 0;
+    for (let i = 1; i < xr.length; i++) {
+      const dx = xr[i] - xr[i - 1], dy = yr[i] - yr[i - 1];
+      path += Math.sqrt(dx * dx + dy * dy);
+    }
+    const ex = xr[xr.length - 1] - xr[0], ey = yr[yr.length - 1] - yr[0];
+    const straightness = Math.sqrt(ex * ex + ey * ey) / (path + 1);
+    const wobble = bandAmp * (1 - straightness);
+    const travel = meanSpeed * straightness;
+
+    return [meanSpeed, speedVar, accelVar, jerkRms, reversals, hfRatio, bandAmp, straightness, wobble, travel];
   }
 
   /** Raw samples (t in ms, x, y in px) -> feature array, ordered like FEATURE_NAMES. */
