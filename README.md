@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 1: extension setup and raw movement capture. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 2: Python synthetic data, features and classifier. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -15,7 +15,13 @@ content/main.js      On/off switch, popup stats, demo-page "export recording" br
 popup/               Toolbar popup: master switch + live debug readout
 calibrate/           Calibration page (placeholder until Checkpoint 5)
 demo/                Fake email compose page used for testing and the demo
-shared/, ml/         Python ML pipeline + shared config (from Checkpoint 2)
+shared/config.json   Window settings shared by Python and JS (rate, window, band)
+shared/model.json    Trained classifier, exported for the browser
+shared/fixtures.json Test windows + expected outputs for the JS parity test
+ml/synth.py          Generates synthetic movement windows
+ml/features.py       Window -> feature vector (mirrored later in content/features.js)
+ml/train.py          Trains, evaluates, exports model + fixtures + charts
+ml/plots/            Charts for the slides
 ```
 
 ## Load the extension
@@ -67,6 +73,45 @@ Then open <http://localhost:5500/demo/>.
 }
 ```
 `t` is milliseconds since the first sample. `x`/`y` are CSS pixels in the viewport. We use `getCoalescedEvents()` so we get every hardware sample, not just one per animation frame.
+
+## Python ML pipeline
+
+### One-time setup
+From the repo root:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate          # do this in every new terminal
+pip install -r ml/requirements.txt
+```
+If pip fails while "Building wheel for cryptography" (it tries to compile and needs Apple's developer tools), run `pip install --only-binary=:all: cryptography` and then the install line again.
+
+### Train the model
+```bash
+python ml/train.py
+```
+Takes about a minute. It generates 9,000 synthetic windows (3,000 per class, fixed seed 42), trains, prints the metrics, and writes `shared/model.json`, `shared/fixtures.json` and `ml/plots/*.png`.
+
+You can also pass exported recordings to see what the model thinks of real movement:
+```bash
+python ml/train.py ~/Downloads/smooth-mouse-recording-*.json
+```
+
+### How it works
+1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches, small corrections, holds and slow drags. `unstable` = the same plus a 4–10 Hz, 2–20 px oscillation and extra noise. `uncertain` = very small oscillations (0.7–2 px) or fast intentional scribbles. Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps, 0.5 px steps, no event when the cursor doesn't move.
+2. **Windows** (`shared/config.json`). Each window is 250 ms, resampled to 100 Hz (25 points). Live, a new window is classified every 50 ms.
+3. **Features** (`features.py`). Mean speed, speed variance, acceleration variance, jerk RMS (all log-scaled), direction reversals, and the share of velocity power in the 4–12 Hz band (FFT).
+4. **Model** (`train.py`). `StandardScaler` + multinomial `LogisticRegression`. It exports to about 30 numbers that JavaScript can run in a few lines.
+
+### Results (synthetic test set, 1,800 windows)
+| | precision | recall |
+|---|---|---|
+| stable | 0.86 | 0.84 |
+| uncertain | 0.82 | 0.85 |
+| unstable | 0.97 | 0.96 |
+
+**Accuracy: 88.1%** (decision tree for comparison: 87.6%). Most mistakes are stable ↔ uncertain, which only changes smoothing between light and medium. Calm movement is called `unstable` less than 1% of the time, so the cursor shouldn't feel sluggish for steady hands.
+
+> **Honesty note:** these numbers are on *synthetic* data. They show the pipeline works, not that it generalizes to real tremors. That would need testing with real users.
 
 ## Privacy
 All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.
