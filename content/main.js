@@ -62,6 +62,12 @@
           exportedAt: new Date().toISOString(),
           seconds,
           page: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
+          // Diagnostics: helps explain an empty export.
+          debug: {
+            enabled: SM.enabled,
+            pointerSamplesSinceLoad: SM.capture.getStats().pointerSamples,
+            historySize: SM.capture.getStats().historySize,
+          },
           // Columns: t = ms since first sample, x/y = CSS pixels (viewport),
           // type = move | down | up, buttons = pressed-buttons bitmask.
           sampleCount: samples.length,

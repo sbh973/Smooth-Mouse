@@ -92,12 +92,18 @@
       if (coalesced && coalesced.length) samples = coalesced;
     }
 
+    // All buffer times use OUR performance.now() clock. Some browsers give
+    // event.timeStamp on a different clock, which would make every sample look
+    // "too old" and get filtered out. We only use event timestamps for the
+    // small spacing between coalesced samples, and only if it looks sane.
+    const now = performance.now();
     for (const s of samples) {
       counters.pointerSamples++;
+      let age = e.timeStamp - s.timeStamp; // how much earlier this sample happened
+      if (!(age >= 0 && age < 200)) age = 0;
       record(
         {
-          // event.timeStamp uses the same clock as performance.now().
-          t: s.timeStamp || performance.now(),
+          t: now - age,
           type,
           x: s.clientX,
           y: s.clientY,

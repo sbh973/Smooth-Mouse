@@ -66,6 +66,11 @@ document.getElementById("export").addEventListener("click", async () => {
   const seconds = Number(document.getElementById("export-seconds").value);
   try {
     const { recording } = await ask("export-request", "export-response", { seconds });
+    if (!recording.sampleCount) {
+      exportStatus.textContent = `No pointer samples in the last ${seconds} s. Move the mouse over this page first. (Samples since load: ${recording.debug.pointerSamplesSinceLoad})`;
+      exportStatus.className = "status warn";
+      return;
+    }
     const blob = new Blob([JSON.stringify(recording, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
