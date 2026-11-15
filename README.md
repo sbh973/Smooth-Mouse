@@ -200,7 +200,7 @@ It listens only on `127.0.0.1:8000`. The first start builds a cache of the base 
 ### What calibration does
 Open the popup → **Calibrate (1 minute)**:
 1. **Hold** the cursor on a dot for 10 s → resting fluctuation size (px) and frequency (times per second).
-2. **Click 10 targets** of different sizes → real reaching movement, misses, accidental double-clicks, how much the cursor drifts during a press.
+2. **Click 5 targets** of different sizes, then **right-click 3** → real reaching movement, and how long real clicks vs accidental clicks (outside the circles) are held.
 3. **Type a sentence** → typing rhythm and accidental double key presses (the sentence has no doubled letters, so any double is accidental).
 
 Then:
@@ -223,11 +223,15 @@ Put your key in `.env` (never in `.env.example`, which is committed): `GEMINI_AP
 
 A shaky hand often produces **quick accidental taps**. With protection on, a click only counts if the button is **held for the hold period**. Left, right and middle each have their own switch.
 
-- **The AI picks the hold period during calibration** (`calibrate.js → chooseClickHold`). The click step records how long you hold each intended click (target hits) and each accidental one (a second press right after a hit, when the target had already moved). A short right-click round (3 targets) measures the right button separately.
-  - If the two groups don't overlap, the hold period goes halfway between your longest accidental tap and the short end (10th percentile) of your intended clicks.
-  - Otherwise it's 80% of your shortest intended clicks (5th percentile), so about 95% of your normal clicks still count without you changing how you click.
-  - Clamped to 0.04–0.5 s. Middle uses the left value.
-  - Protection is turned **on** automatically only if calibration saw a reason: a resting wobble ≥ 1.5 px, or an accidental double-click. Otherwise it stays off.
+- **The AI picks the hold period during calibration** (`calibrate.js → bestHold / chooseClickHold`). In the circle steps (5 left-clicks, then 3 right-clicks) it times how long the button is held on every press:
+  - **real clicks:** presses that hit a circle
+  - **accidental clicks:** every press that lands *outside* a circle (shaky taps, slips)
+  - It tries every possible hold time and keeps the one with the fewest mistakes. A real click that would be ignored counts **3×**; an accidental click that would get through counts 1×. Ties go to the shorter hold. The hold time is then placed in the gap between the accidental taps it catches and the quickest real click.
+  - Because blocking a real click is so costly, a miss that was just an aim error (a normal-length press slightly off the circle) can't push the hold time above your real clicks.
+  - No accidental clicks? Then it's 80% of your quickest real click, so every normal click still counts.
+  - Clamped to 0.04–0.5 s. Middle uses the left value; right uses its own 3 clicks.
+  - Protection is turned **on** automatically if calibration saw a resting wobble ≥ 1.5 px or at least one accidental click quicker than your quickest real click. Otherwise it stays off.
+  - Example: real clicks held 0.11–0.18 s, 3 taps outside the circles held 0.03–0.06 s → hold **0.09 s**, which ignores all 3 taps and keeps all real clicks.
 - **While you hold** a protected button, a ring around the cursor fills up (orange → teal). Let go after it's full and the click counts.
 - **Quick taps are ignored** with a message: "Smooth Mouse ignored a quick left click. Hold for 0.09 s to click." The popup counts them.
 - **Popup → Accidental clicks:** switches for left, right and middle, the hold period with the reason calibration chose it, a slider to override it, and *Use calibrated value* to undo the override.

@@ -1,7 +1,7 @@
 // calibrate.js — the 1-minute calibration flow.
 //
 //   Step 1 Hold   10 s on a dot → resting fluctuation size (px) and frequency (Hz)
-//   Step 2 Click  10 targets    → real reaching movement, misses, accidental double-clicks, press drift
+//   Step 2 Click  5 targets + 3 right-clicks → real reaching movement, how long real vs accidental clicks are held
 //   Step 3 Type   one sentence  → typing rhythm and accidental double key presses
 //
 // Then:
@@ -15,10 +15,10 @@
 const api = globalThis.browser ?? globalThis.chrome;
 const SERVER = "http://localhost:8000";
 const HOLD_MS = 10000;
-const N_TARGETS = 10;
+const N_TARGETS = 5; // short on purpose: enough to measure, not enough to get tiring
 const N_RIGHT_TARGETS = 3;
 const DEFAULT_HOLD_MS = 150; // used when calibration has too few clicks to decide
-const SIZES = [24, 32, 44, 56, 72, 28, 64, 36, 48, 24]; // px, varied on purpose
+const SIZES = [24, 56, 36, 72, 44]; // px, varied on purpose (small to large)
 const SENTENCE = "the quick brown fox jumps over the lazy dog"; // no doubled letters, so any double press is accidental
 
 const data = { hold: [], reach: [], clicks: [], rclicks: [], keys: [] };
@@ -350,62 +350,94 @@ function keyStats(keys) {
 /**
  * HOLD PERIOD: how long a button must be held for a press to count as a click.
  *
- * Accidental clicks from a shaky hand are usually very quick taps; clicks you
- * mean are held a little longer. For each button we look at how long the user
- * held their INTENDED clicks (target hits) and their ACCIDENTAL ones (a second
- * press right after a hit, when the target had already moved):
- *   - if the two groups don't overlap, put the hold period halfway between the
- *     longest accidental tap and the short end (10th percentile) of intended clicks;
- *   - otherwise use 80% of the user's shortest intended clicks (5th percentile),
- *     so ~95% of their normal clicks still count without changing how they click.
- * Clamped to 40-500 ms and rounded to 10 ms. Middle button uses the left value.
- * Protection is switched ON only if calibration saw a reason: a measurable
- * resting wobble (>= 1.5 px) or at least one accidental double-click.
+ * During the circle steps we time how long the button is held on every press:
+ *   REAL clicks       presses that hit a circle
+ *   ACCIDENTAL clicks presses that land OUTSIDE the circle (shaky taps, slips)
+ *
+ * Then we try every possible hold time and keep the one that makes the fewest
+ * mistakes:
+ *   mistake = a REAL click that would be ignored        (counts 3x: very annoying)
+ *           + an ACCIDENTAL click that would get through (counts 1x)
+ * Ties go to the SHORTER hold, so clicking never feels slower than needed.
+ * Some misses are just aim errors with a normal-length press; the 3x rule means
+ * those can't push the hold time above the user's real clicks.
+ *
+ * If there were no accidental clicks to learn from, we use 80% of the user's
+ * quickest real click, so every normal click still counts.
+ * Clamped to 0.04-0.5 s, rounded to 0.01 s. Middle uses the left value.
+ *
+ * Protection is switched ON if calibration saw a reason: a measurable resting
+ * wobble (>= 1.5 px) or at least one accidental click that was quicker than
+ * the user's quickest real click (a quick shaky tap).
  */
+const MISS_COST_REAL = 3;     // blocking a real click is 3x worse...
+const MISS_COST_ACCIDENT = 1; // ...than letting an accidental one through
+
+function bestHold(real, accidental) {
+  if (real.length < 2) return { ms: DEFAULT_HOLD_MS, basis: "default", blockedReal: 0, caught: 0 };
+  if (!accidental.length) {
+    return { ms: roundHold(0.8 * Math.min(...real)), basis: "no accidents", blockedReal: 0, caught: 0 };
+  }
+  // Candidate hold times: just above each recorded press, plus "almost none".
+  const candidates = [0, ...real, ...accidental].map((d) => d + 1).sort((a, b) => a - b);
+  let best = null;
+  for (const hold of candidates) {
+    const blockedReal = real.filter((d) => d < hold).length;
+    const caught = accidental.filter((d) => d < hold).length;
+    const cost = MISS_COST_REAL * blockedReal + MISS_COST_ACCIDENT * (accidental.length - caught);
+    if (!best || cost < best.cost) best = { hold, cost, blockedReal, caught };
+  }
+  // Put the hold time in the GAP: halfway between the longest accidental tap it
+  // catches and the quickest real click it lets through.
+  const caughtMax = Math.max(0, ...accidental.filter((d) => d < best.hold));
+  const realAbove = real.filter((d) => d >= best.hold);
+  const ms = realAbove.length && caughtMax > 0 ? (caughtMax + Math.min(...realAbove)) / 2 : best.hold;
+  return { ms: roundHold(ms), basis: "best split", blockedReal: best.blockedReal, caught: best.caught };
+}
+const roundHold = (ms) => Math.round(clamp(ms, 40, 500) / 10) * 10;
+
 function chooseClickHold(m) {
   const durations = (list, pred) => list.filter((c) => pred(c) && c.durationMs !== null).map((c) => c.durationMs);
-  const decide = (intended, accidental) => {
-    if (intended.length < 2) return { ms: DEFAULT_HOLD_MS, basis: "default" };
-    const p10 = percentile(intended, 0.1), p5 = percentile(intended, 0.05);
-    let ms, basis;
-    if (accidental.length && Math.max(...accidental) < p10) {
-      ms = (Math.max(...accidental) + p10) / 2;
-      basis = "split";
-    } else {
-      ms = 0.8 * p5;
-      basis = "intended";
-    }
-    return { ms: Math.round(clamp(ms, 40, 500) / 10) * 10, basis };
-  };
-  const leftIntended = durations(data.clicks, (c) => c.hit);
-  const leftAccidental = durations(data.clicks, (c) => c.accidentalDouble);
-  const left = decide(leftIntended, leftAccidental);
-  const rightIntended = durations(data.rclicks, (c) => c.hit);
-  const right = rightIntended.length >= 2 ? decide(rightIntended, durations(data.rclicks, (c) => c.accidentalDouble)) : { ...left, basis: "same as left" };
-  const recommendedOn = (m.amplitudePx || 0) >= 1.5 || (m.accidentalDoubleClicks || 0) > 0;
+  const leftReal = durations(data.clicks, (c) => c.hit);
+  const leftAccidental = durations(data.clicks, (c) => !c.hit); // every click outside the circle
+  const left = bestHold(leftReal, leftAccidental);
+  const rightReal = durations(data.rclicks, (c) => c.hit);
+  const right = rightReal.length >= 2
+    ? bestHold(rightReal, durations(data.rclicks, (c) => !c.hit))
+    : { ...left, basis: "same as left" };
 
-  const s = (ms) => (ms / 1000).toFixed(2);
+  const quickTaps = leftReal.length ? leftAccidental.filter((d) => d < Math.min(...leftReal)).length : 0;
+  const recommendedOn = (m.amplitudePx || 0) >= 1.5 || quickTaps > 0;
+
+  const sec = (ms) => (ms / 1000).toFixed(2);
+  const range = (list) => (Math.min(...list) === Math.max(...list) ? `${sec(list[0])} s` : `${sec(Math.min(...list))}–${sec(Math.max(...list))} s`);
   let reason;
-  if (left.basis === "split") {
-    reason = `Your accidental clicks lasted at most ${s(Math.max(...leftAccidental))} s, while your intended clicks lasted at least about ${s(percentile(leftIntended, 0.1))} s, so a ${s(left.ms)} s hold ignores the quick taps and still lets your real clicks through.`;
-  } else if (left.basis === "intended") {
-    reason = `Your normal clicks lasted at least about ${s(percentile(leftIntended, 0.05))} s, so requiring ${s(left.ms)} s ignores quicker accidental taps without changing how you click.`;
+  if (left.basis === "best split") {
+    const n = leftAccidental.length;
+    const caughtText = n === 1
+      ? (left.caught ? "ignores that accidental click" : "can't catch that click without blocking real ones")
+      : `ignores ${left.caught} of those ${n} accidental clicks`;
+    reason = `You held your real clicks for ${range(leftReal)} and your ${n === 1 ? "click" : `${n} clicks`} outside the circles for ${range(leftAccidental)}. ` +
+      `A ${sec(left.ms)} s hold ${caughtText}` +
+      (left.blockedReal ? ` (and would have blocked ${left.blockedReal} real one).` : " and keeps all your real clicks.");
+  } else if (left.basis === "no accidents") {
+    reason = `You didn't click outside any circles, so the hold is set just under your quickest real click (${sec(Math.min(...leftReal))} s). All your normal clicks still count.`;
   } else {
-    reason = `There weren't enough clicks to measure, so Smooth Mouse uses a standard ${s(left.ms)} s hold.`;
+    reason = `There weren't enough clicks to measure, so Smooth Mouse uses a standard ${sec(left.ms)} s hold.`;
   }
   reason += recommendedOn
-    ? " Accidental-click protection is ON because calibration saw shaking or an accidental double-click."
+    ? " Protection is ON because calibration saw shaking or quick accidental taps."
     : " Protection is OFF because your clicks looked steady; you can turn it on in the popup.";
 
   return {
     left: left.ms, right: right.ms, middle: left.ms,
     recommendedOn, reason,
     stats: {
-      intendedClicks: leftIntended.length,
+      realClicks: leftReal.length,
       accidentalClicks: leftAccidental.length,
-      shortestIntendedMs: leftIntended.length ? Math.round(Math.min(...leftIntended)) : null,
-      medianIntendedMs: leftIntended.length ? Math.round(median(leftIntended)) : null,
-      longestAccidentalMs: leftAccidental.length ? Math.round(Math.max(...leftAccidental)) : null,
+      quickAccidentalTaps: quickTaps,
+      accidentalCaught: left.caught,
+      realBlocked: left.blockedReal,
     },
   };
 }
