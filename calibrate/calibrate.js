@@ -421,6 +421,18 @@ function buildProfile(m) {
 }
 
 /**
+ * "13% → 5%" isn't clear to most people, so say it in words:
+ * "about 13 out of every 100 ... now about 5 out of 100".
+ */
+function mistakesSentence(before, after) {
+  if (after < before) {
+    return `Before calibration, Smooth Mouse mistook about ${before} out of every 100 of your normal movements for shaking. ` +
+      `Now that it has learned how you move, that's down to about ${after} out of 100, so it smooths only when you really need it.`;
+  }
+  return `Smooth Mouse mistakes about ${after} out of every 100 of your normal movements for shaking, about the same as before calibration.`;
+}
+
+/**
  * Decide which protections to switch on and explain each in plain words.
  * Returns cards for the results screen AND the popup settings to save.
  */
@@ -442,7 +454,7 @@ function decideProtections(m, profile, personal) {
       on: true,
       what: "When your hand shakes, the cursor is smoothed so it stays where you're aiming. When you move on purpose, it gets out of the way.",
       why: wobble + (r.calmCalledUnstableBefore !== undefined
-        ? ` Your personal model now mistakes fewer of your normal moves for shaking (${pct(r.calmCalledUnstableBefore)}% → ${pct(r.calmCalledUnstableAfter)}%).`
+        ? " " + mistakesSentence(pct(r.calmCalledUnstableBefore), pct(r.calmCalledUnstableAfter))
         : ""),
     },
     {
@@ -602,7 +614,8 @@ function renderResults(m, profile, personal, explanation, decision) {
   if (!data.clickSkipped) facts.push(`Circles: ${m.targetsHit} hit, ${m.misses} clicks outside the circles`);
   if (m.keysTyped) facts.push(`Typing: about ${Math.round(m.medianKeyGapMs)} ms between keys, ${m.accidentalKeyRepeats} double key presses`);
   if (personal && personal.report.shakyDetectedBefore !== undefined) {
-    facts.push(`Shaky movement detected: ${pct(personal.report.shakyDetectedBefore)}% (default model) → ${pct(personal.report.shakyDetectedAfter)}% (your model)`);
+    facts.push(`Spotting your shaking: before calibration, Smooth Mouse recognized about ${pct(personal.report.shakyDetectedBefore)} out of every 100 of your shaky movements. ` +
+      `With your personal model, it recognizes about ${pct(personal.report.shakyDetectedAfter)} out of 100.`);
   }
   fillList("facts", facts);
 

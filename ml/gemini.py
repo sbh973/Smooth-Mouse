@@ -102,6 +102,8 @@ Rules:
   movement and stay out of the way when they move on purpose. If the
   calmMovesWronglyFlagged numbers are present and went down, mention that their
   personal model now mistakes far fewer of their normal movements for shaking.
+  Never write percentages or arrows like "13% -> 5%"; if you give these numbers,
+  say "about 13 out of every 100 ... now about 5 out of 100".
 - Mention missed clicks or accidental double presses only if they are above 0,
   and say Smooth Mouse can help catch those.
 - If accidentalClickProtectionOn is true, say that a click now counts when they
