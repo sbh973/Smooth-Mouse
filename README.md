@@ -303,5 +303,12 @@ Simulated tests: 12/12 pass (accidental "hh" 40 ms apart is dropped, a real "ll"
 
 *Limits:* Amazon and Target show a bot-check page to automated browsers, so we tested their real button markup on a local copy; a person using normal Firefox gets the real page.
 
+## Risky buttons: ask every time, Gmail
+
+- **Ask every time** (popup switch, on by default): the "Did you mean to…?" dialog appears on every risky click, not only while the hand is shaking. Switch it off to be asked only while shaky.
+- **Gmail and similar sites** act when the mouse button goes *down/up*, before the click. On a risky button Smooth Mouse now holds back the whole press (pointerdown, mousedown, pointerup, mouseup) and replays it only if you choose Yes. Gmail's icon buttons are named by `data-tooltip` / `aria-label` ("Delete"), which the word list reads.
+- **Icon-only buttons without Gemini:** if Gemini can't answer (server off, quota used up), a button's code name (e.g. `id="discard"`, `class="trash"`) is used as a fallback, so the demo's 🗑 still asks. With Gemini working, Gemini decides those buttons.
+- Keyboard presses (Enter/Space on a focused button) are deliberate and are never interrupted. Gmail's keyboard shortcut `#` is not covered.
+
 ## Privacy
 All movement data stays in the page's memory. Raw movement only ever goes to the local server on your own computer (for calibration). Gemini only receives button labels, small icon images and summary numbers, never movement, keystrokes or typed text.

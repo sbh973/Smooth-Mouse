@@ -1,12 +1,18 @@
 // risky.js — "Did you mean to click 'Send'?"
 //
 // Some buttons are dangerous to click by accident: Send, Delete, Buy, Transfer…
-// If a click lands on one of those while the hand is shaking (the ML model
-// said unstable/uncertain in the last second, or the steady cursor is on),
-// we pause and ask first, with big "Yes" / "No, go back" buttons.
+// When a click lands on one of those, we pause and ask first, with big
+// "Yes" / "No, go back" buttons. By default we ask on every risky click; with
+// "Ask every time" off, only while the hand is shaking (the ML model said
+// unstable/uncertain in the last second, or the steady cursor is on).
+//
+// Some sites (e.g. Gmail) act on mousedown/mouseup, not on click, so we hold
+// back the whole press on a risky button and replay it if the user says Yes.
 //
 // Which buttons are risky?
 //   1. A built-in WORD LIST (send, delete, buy, pay, …) decides instantly.
+//      (Button names in the page code, like id="discard", only count when
+//      Gemini can't answer, so Gemini still gets to show what it can do.)
 //   2. Everything the list can't decide is sent, as labels only, to GEMINI
 //      (through background.js and the local server) when the page loads, in
 //      one batch. Icon-only buttons (e.g. a trash can) are sent as a small
@@ -29,14 +35,14 @@
   const RISKY_WORDS = /\b(send|delete|remove|trash|buy|purchase|pay|place (?:your )?order|order now|book now|checkout|check out|submit|confirm|transfer|unsubscribe|post|publish|donate)\b/i;
   // In class/id names only specific words count: "submit"/"confirm" are used for
   // every form button (e.g. Amazon's search "Go"), so they only count in visible labels.
-  const RISKY_TOKENS = new Set(["send", "delete", "remove", "trash", "buy", "purchase", "pay", "checkout", "transfer", "unsubscribe", "publish", "donate"]);
+  const RISKY_TOKENS = new Set(["send", "delete", "remove", "trash", "discard", "bin", "buy", "purchase", "pay", "checkout", "transfer", "unsubscribe", "publish", "donate"]);
   // Never risky: search boxes. Never worth asking Gemini about: obviously safe buttons.
   const isSearch = (el) => !!(el.closest('[role="search"], search') ||
     /search/i.test(`${el.id} ${typeof el.className === "string" ? el.className : ""} ${el.getAttribute("name") || ""} ${el.getAttribute("aria-label") || ""}`));
   const OBVIOUSLY_SAFE = /^(search|go|menu|close|×|x|next|previous|prev|back|more|less|show more|see more|see all|view all|sign in|log in|login|sign up|register|help|share|like|follow|filter|sort|cancel|ok|got it|accept|dismiss|open|expand|collapse|play|pause|mute|unmute|zoom|add to cart|add to bag|add to list|add to wishlist|wishlist|save|view|details|learn more|read more|skip|home|account|cart)$/i;
   const ACTION_OF = [
     [/send|post|publish/i, "send"],
-    [/delete|remove|trash|unsubscribe/i, "delete"],
+    [/delete|remove|trash|discard|bin|unsubscribe/i, "delete"],
     [/buy|purchase|pay|order|checkout|check out|transfer|donate/i, "purchase"],
     [/submit|confirm/i, "submit"],
   ];
@@ -46,15 +52,17 @@
     // aria-labelledby: the label lives in another element (e.g. Amazon's "Buy Now" button).
     const ids = el.getAttribute("aria-labelledby");
     const labelled = ids ? ids.split(/\s+/).map((id) => document.getElementById(id)).filter(Boolean).map((n) => n.textContent).join(" ") : "";
-    return clean(el.getAttribute("aria-label") || labelled || el.innerText || el.value || el.getAttribute("title") ||
+    // data-tooltip: Gmail's toolbar icons ("Delete", "Archive") keep their name there.
+    return clean(el.getAttribute("aria-label") || labelled || el.innerText || el.value || el.getAttribute("title") || el.getAttribute("data-tooltip") ||
       (el.querySelector && el.querySelector("img[alt]") && el.querySelector("img[alt]").alt) || "");
   }
 
-  function wordListVerdict(el) {
+  /** Visible words only, or (useNames) also the button's id/class names. */
+  function wordListVerdict(el, useNames) {
     if (isSearch(el)) return null;
-    const words = [labelOf(el), el.getAttribute("title"), el.getAttribute("aria-label"), el.value].filter(Boolean).join(" ");
+    const words = [labelOf(el), el.getAttribute("title"), el.getAttribute("aria-label"), el.getAttribute("data-tooltip"), el.value].filter(Boolean).join(" ");
     let match = words.match(RISKY_WORDS);
-    if (!match) {
+    if (!match && useNames) {
       // class / id like "btn-delete" ("post" skipped here: "post-title" is common)
       const tokens = `${el.id} ${typeof el.className === "string" ? el.className : ""}`.toLowerCase().split(/[^a-z]+/);
       const tok = tokens.find((t) => RISKY_TOKENS.has(t));
@@ -62,7 +70,7 @@
     }
     if (!match) return null;
     const action = (ACTION_OF.find(([re]) => re.test(match[0])) || [null, "other"])[1];
-    return { risky: true, action, reason: `The label contains "${match[0].toLowerCase()}".`, source: "words" };
+    return { risky: true, action, reason: `The button says "${match[0].toLowerCase()}".`, source: "words" };
   }
 
   // --- What we know about each button ------------------------------------------
@@ -73,9 +81,13 @@
 
   function verdictFor(el) {
     if (verdicts.has(el)) return verdicts.get(el);
-    const v = wordListVerdict(el);
+    const v = wordListVerdict(el, false);
     if (v) verdicts.set(el, v);
     return v;
+  }
+  /** At click time: if Gemini never answered for this button, fall back to its id/class names. */
+  function verdictAtClick(el) {
+    return verdictFor(el) || wordListVerdict(el, true);
   }
 
   // --- 2. Gemini pre-classification (labels + icons only) ----------------------
@@ -190,6 +202,11 @@
     } catch { reply = null; }
     if (!reply || !reply.ok) {
       geminiState = "off";
+      // Gemini can't help: decide these by their id/class names instead.
+      for (const el of undecided) {
+        const v = wordListVerdict(el, true);
+        if (v) { verdicts.set(el, v); scanLog.push({ label: labelOf(el) || "Icon-only button", ...v }); }
+      }
       renderScan();
       return;
     }
@@ -228,6 +245,7 @@
   });
   const shakyNow = () =>
     performance.now() - lastShakyAt < 1000 || (SM.stabilize && SM.stabilize.engaged) || (SM.simulator && SM.simulator.on);
+  const shouldAsk = () => SM.settings.riskyAlways !== false || shakyNow();
 
   // --- The dialog ---------------------------------------------------------------------
   const YES = { send: "Yes, send it", delete: "Yes, delete it", purchase: "Yes, pay", submit: "Yes, submit it", other: "Yes, continue" };
@@ -255,7 +273,8 @@
       ? `Did you mean to click "${label}"?`
       : `Did you mean to ${DO[verdict.action] || DO.other}?`;
     dialog.querySelector("#sm-dialog-reason").textContent =
-      verdict.source === "gemini" ? verdict.reason : "Your hand looked shaky, and this button can be hard to undo.";
+      verdict.source === "gemini" ? verdict.reason
+        : shakyNow() ? "Your hand looked shaky, and this button can be hard to undo." : "This button can be hard to undo.";
     const src = dialog.querySelector(".sm-dialog-source");
     if (verdict.source === "gemini") {
       src.innerHTML = '<span class="sm-tag">Checked by Gemini</span>';
@@ -292,28 +311,66 @@
   /** Click `el` now, unless it's risky and the hand was shaking: then ask first. */
   function guardedClick(el, x, y) {
     const target = el.closest ? el.closest(BUTTONS) || el : el;
-    const v = SM.settings && SM.settings.riskyConfirm && !el.closest(OURS) ? verdictFor(target) : null;
-    const click = () => {
+    const v = SM.settings && SM.settings.riskyConfirm && !el.closest(OURS) ? verdictAtClick(target) : null;
+    if (v && v.risky && shouldAsk()) confirmClick(target, v, () => replayPress(target, x, y));
+    else {
       if (target.matches && target.matches("input, textarea, select, button, a[href], [tabindex]")) target.focus();
       target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, button: 0, detail: 1 }));
-    };
-    if (v && v.risky && shakyNow()) confirmClick(target, v, click);
-    else click();
+    }
   }
 
-  // Real clicks that nobody redirected (this listener runs after the
-  // steady-cursor listener, which calls guardedClick itself).
-  window.addEventListener("click", (e) => {
-    if (!e.isTrusted || e.detail === 0 || e.button !== 0 || !SM.enabled || !SM.settings.riskyConfirm) return;
-    if (e.target.closest && e.target.closest(OURS)) return;
+  /** After "Yes": replay a whole press (down, up, click), because some sites
+   *  (Gmail) act on mousedown/mouseup rather than on click. */
+  function replayPress(el, x, y) {
+    if (!el.isConnected) return;
+    if (x === undefined) {
+      const r = el.getBoundingClientRect();
+      x = r.left + r.width / 2; y = r.top + r.height / 2;
+    }
+    const opts = { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, button: 0, view: window };
+    if (el.matches && el.matches("input, textarea, select, button, a[href], [tabindex]")) el.focus();
+    try { el.dispatchEvent(new PointerEvent("pointerdown", { ...opts, pointerId: 1, isPrimary: true, buttons: 1 })); } catch {}
+    el.dispatchEvent(new MouseEvent("mousedown", { ...opts, buttons: 1, detail: 1 }));
+    try { el.dispatchEvent(new PointerEvent("pointerup", { ...opts, pointerId: 1, isPrimary: true })); } catch {}
+    el.dispatchEvent(new MouseEvent("mouseup", { ...opts, detail: 1 }));
+    el.dispatchEvent(new MouseEvent("click", { ...opts, detail: 1 }));
+  }
+
+  // --- Real presses on a risky button ------------------------------------------------
+  // We hold back pointerdown/mousedown/pointerup/mouseup on a risky button so
+  // the page can't act yet, then ask when the click arrives. If the click never
+  // comes (a quick tap Smooth Mouse ignored, or the user slid off), nothing happens.
+  const pressTarget = (e) => {
+    if (!e.isTrusted || e.button !== 0 || !SM.enabled || !SM.settings || !SM.settings.riskyConfirm) return null;
+    if (!e.target.closest || e.target.closest(OURS)) return null;
     // Buttons, and also links that read like an action ("Checkout", "Buy now").
-    const target = e.target.closest ? e.target.closest(BUTTONS + ", a[href]") : null;
-    if (!target) return;
-    const v = verdictFor(target);
-    if (!v || !v.risky || !shakyNow()) return;
+    const target = e.target.closest(BUTTONS + ", a[href]");
+    if (!target) return null;
+    const v = verdictAtClick(target);
+    return v && v.risky && shouldAsk() ? { target, v } : null;
+  };
+  let heldBack = null; // the risky button whose press we're holding back
+  const holdBack = (e) => {
+    const hit = pressTarget(e);
+    if (e.type === "pointerdown" || e.type === "mousedown") {
+      if (!hit) { if (e.type === "pointerdown") heldBack = null; return; }
+      heldBack = hit.target;
+    } else if (!heldBack) return;
     e.preventDefault();
     e.stopImmediatePropagation();
-    confirmClick(target, v, () => target.click());
+  };
+  for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) window.addEventListener(type, holdBack, true);
+
+  // The click (this listener runs after the steady-cursor listener, which
+  // calls guardedClick itself when it redirects a click).
+  window.addEventListener("click", (e) => {
+    if (e.detail === 0) return; // keyboard "clicks" (Enter/Space) go straight through
+    const hit = pressTarget(e);
+    heldBack = null;
+    if (!hit) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    confirmClick(hit.target, hit.v, () => replayPress(hit.target, e.clientX, e.clientY));
   }, true);
 
   // --- Demo page: "Gemini page scan" panel --------------------------------------------
