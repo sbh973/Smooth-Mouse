@@ -354,92 +354,54 @@ function keyStats(keys) {
  *   REAL clicks       presses that hit a circle
  *   ACCIDENTAL clicks presses that land OUTSIDE the circle (shaky taps, slips)
  *
- * Then we try every possible hold time and keep the one that makes the fewest
- * mistakes:
- *   mistake = a REAL click that would be ignored        (counts 3x: very annoying)
- *           + an ACCIDENTAL click that would get through (counts 1x)
- * Ties go to the SHORTER hold, so clicking never feels slower than needed.
- * Some misses are just aim errors with a normal-length press; the 3x rule means
- * those can't push the hold time above the user's real clicks.
+ * Rule 1 (never block real clicks): the hold time must stay below 85% of the
+ *   user's quickest real click, so every click they meant still counts.
+ * Rule 2 (catch accidental taps): accidental clicks quicker than that limit
+ *   can be caught; we put the hold time halfway between the longest of those
+ *   taps and the quickest real click (but never above the Rule 1 limit).
+ * If no accidental click was quick enough to catch, we use 80% of the quickest
+ * real click. Kept between 0.03 and 0.5 s, rounded DOWN to 0.01 s.
  *
- * If there were no accidental clicks to learn from, we use 80% of the user's
- * quickest real click, so every normal click still counts.
- * Clamped to 0.04-0.5 s, rounded to 0.01 s. Middle uses the left value.
- *
- * Protection is switched ON if calibration saw a reason: a measurable resting
- * wobble (>= 1.5 px) or at least one accidental click that was quicker than
- * the user's quickest real click (a quick shaky tap).
+ * (An earlier version traded real clicks for accidental ones; with many misses
+ * it chose a hold time that blocked every real click. Rule 1 prevents that.)
  */
-const MISS_COST_REAL = 3;     // blocking a real click is 3x worse...
-const MISS_COST_ACCIDENT = 1; // ...than letting an accidental one through
-
 function bestHold(real, accidental) {
-  if (real.length < 2) return { ms: DEFAULT_HOLD_MS, basis: "default", blockedReal: 0, caught: 0 };
-  if (!accidental.length) {
-    return { ms: roundHold(0.8 * Math.min(...real)), basis: "no accidents", blockedReal: 0, caught: 0 };
+  if (real.length < 2) return { ms: DEFAULT_HOLD_MS, basis: "default", caught: 0, total: accidental.length };
+  const quickest = Math.min(...real);
+  const limit = 0.85 * quickest;
+  const taps = accidental.filter((d) => d < limit);
+  let ms, basis;
+  if (taps.length) {
+    ms = Math.min(limit, (Math.max(...taps) + quickest) / 2);
+    basis = "split";
+  } else {
+    ms = 0.8 * quickest;
+    basis = "no quick taps";
   }
-  // Candidate hold times: just above each recorded press, plus "almost none".
-  const candidates = [0, ...real, ...accidental].map((d) => d + 1).sort((a, b) => a - b);
-  let best = null;
-  for (const hold of candidates) {
-    const blockedReal = real.filter((d) => d < hold).length;
-    const caught = accidental.filter((d) => d < hold).length;
-    const cost = MISS_COST_REAL * blockedReal + MISS_COST_ACCIDENT * (accidental.length - caught);
-    if (!best || cost < best.cost) best = { hold, cost, blockedReal, caught };
-  }
-  // Put the hold time in the GAP: halfway between the longest accidental tap it
-  // catches and the quickest real click it lets through.
-  const caughtMax = Math.max(0, ...accidental.filter((d) => d < best.hold));
-  const realAbove = real.filter((d) => d >= best.hold);
-  const ms = realAbove.length && caughtMax > 0 ? (caughtMax + Math.min(...realAbove)) / 2 : best.hold;
-  return { ms: roundHold(ms), basis: "best split", blockedReal: best.blockedReal, caught: best.caught };
+  ms = Math.max(30, Math.min(500, Math.floor(ms / 10) * 10));
+  return { ms, basis, caught: accidental.filter((d) => d < ms).length, total: accidental.length, quickest };
 }
-const roundHold = (ms) => Math.round(clamp(ms, 40, 500) / 10) * 10;
 
 function chooseClickHold(m) {
   const durations = (list, pred) => list.filter((c) => pred(c) && c.durationMs !== null).map((c) => c.durationMs);
   const leftReal = durations(data.clicks, (c) => c.hit);
-  const leftAccidental = durations(data.clicks, (c) => !c.hit); // every click outside the circle
+  const leftAccidental = durations(data.clicks, (c) => !c.hit); // every click outside the circles
   const left = bestHold(leftReal, leftAccidental);
   const rightReal = durations(data.rclicks, (c) => c.hit);
-  const right = rightReal.length >= 2
-    ? bestHold(rightReal, durations(data.rclicks, (c) => !c.hit))
-    : { ...left, basis: "same as left" };
-
+  const right = rightReal.length >= 2 ? bestHold(rightReal, durations(data.rclicks, (c) => !c.hit)) : { ...left, basis: "same as left" };
   const quickTaps = leftReal.length ? leftAccidental.filter((d) => d < Math.min(...leftReal)).length : 0;
   const recommendedOn = (m.amplitudePx || 0) >= 1.5 || quickTaps > 0;
 
-  const sec = (ms) => (ms / 1000).toFixed(2);
-  const range = (list) => (Math.min(...list) === Math.max(...list) ? `${sec(list[0])} s` : `${sec(Math.min(...list))}–${sec(Math.max(...list))} s`);
-  let reason;
-  if (left.basis === "best split") {
-    const n = leftAccidental.length;
-    const caughtText = n === 1
-      ? (left.caught ? "ignores that accidental click" : "can't catch that click without blocking real ones")
-      : `ignores ${left.caught} of those ${n} accidental clicks`;
-    reason = `You held your real clicks for ${range(leftReal)} and your ${n === 1 ? "click" : `${n} clicks`} outside the circles for ${range(leftAccidental)}. ` +
-      `A ${sec(left.ms)} s hold ${caughtText}` +
-      (left.blockedReal ? ` (and would have blocked ${left.blockedReal} real one).` : " and keeps all your real clicks.");
-  } else if (left.basis === "no accidents") {
-    reason = `You didn't click outside any circles, so the hold is set just under your quickest real click (${sec(Math.min(...leftReal))} s). All your normal clicks still count.`;
+  const sec = (ms) => `${(ms / 1000).toFixed(2)} seconds`;
+  let why;
+  if (left.basis === "split") {
+    why = `Your real clicks lasted at least ${sec(left.quickest)}. ${left.caught} of your ${left.total} clicks outside the circles were quicker taps, so those get ignored.`;
+  } else if (left.basis === "no quick taps") {
+    why = `Your real clicks lasted at least ${sec(left.quickest)}, so the hold time sits just under that. All your normal clicks still count.`;
   } else {
-    reason = `There weren't enough clicks to measure, so Smooth Mouse uses a standard ${sec(left.ms)} s hold.`;
+    why = "There weren't enough clicks to measure, so this is a standard hold time.";
   }
-  reason += recommendedOn
-    ? " Protection is ON because calibration saw shaking or quick accidental taps."
-    : " Protection is OFF because your clicks looked steady; you can turn it on in the popup.";
-
-  return {
-    left: left.ms, right: right.ms, middle: left.ms,
-    recommendedOn, reason,
-    stats: {
-      realClicks: leftReal.length,
-      accidentalClicks: leftAccidental.length,
-      quickAccidentalTaps: quickTaps,
-      accidentalCaught: left.caught,
-      realBlocked: left.blockedReal,
-    },
-  };
+  return { left: left.ms, right: right.ms, middle: left.ms, recommendedOn, reason: why, caught: left.caught, totalOutside: left.total };
 }
 
 /** Thresholds used by click/key protection and target assistance (Checkpoint 6). */
@@ -456,6 +418,77 @@ function buildProfile(m) {
     // Moving more than this while the button is held down = shaky click.
     shakyPressDriftPx: Math.round(clamp(Math.max(8, 2 * (m.pressDriftP90Px || 0)), 8, 40)),
   };
+}
+
+/**
+ * Decide which protections to switch on and explain each in plain words.
+ * Returns cards for the results screen AND the popup settings to save.
+ */
+function decideProtections(m, profile, personal) {
+  const shaky = (m.amplitudePx || 0) >= 1.5;
+  const sec = (ms) => `${(ms / 1000).toFixed(2)} seconds`;
+  const r = personal ? personal.report : {};
+  const ch = profile.clickHold;
+
+  const wobble = data.holdSkipped
+    ? "You skipped the hold step."
+    : shaky
+      ? `While you held still, your cursor moved about ${Math.round(m.amplitudePx)} pixels back and forth, about ${Math.round(m.frequencyHz || 0)} times a second.`
+      : "Your cursor stayed steady while you held still.";
+
+  const cards = [
+    {
+      title: "Steady cursor",
+      on: true,
+      what: "When your hand shakes, the cursor is smoothed so it stays where you're aiming. When you move on purpose, it gets out of the way.",
+      why: wobble + (r.calmCalledUnstableBefore !== undefined
+        ? ` Your personal model now mistakes fewer of your normal moves for shaking (${pct(r.calmCalledUnstableBefore)}% → ${pct(r.calmCalledUnstableAfter)}%).`
+        : ""),
+    },
+    {
+      title: "Ignore quick clicks",
+      setting: "ignoreClicks",
+      on: ch.recommendedOn,
+      what: `A click only counts if you hold the button for ${sec(ch.left)}${ch.right !== ch.left ? ` (${sec(ch.right)} for right-click)` : ""}. Quicker accidental taps are ignored.`,
+      why: ch.reason + (ch.recommendedOn ? "" : " Your clicks looked steady, so this starts off."),
+    },
+    {
+      title: "Ignore repeated keys",
+      setting: "filterRepeatedKeys",
+      on: (m.accidentalKeyRepeats || 0) > 0 || shaky,
+      what: `If the same key is pressed twice within ${sec(profile.keyRepeatWindowMs)}, the second press is ignored. "hhello" becomes "hello".`,
+      why: m.keysTyped
+        ? `You type about one key every ${sec(m.medianKeyGapMs || 0)}. A shaky double-press is much quicker than that` +
+          ((m.accidentalKeyRepeats || 0) > 0 ? `, and we saw ${m.accidentalKeyRepeats} during the typing step.` : ".")
+        : "You skipped the typing step, so this uses a standard setting.",
+    },
+    {
+      title: "Button magnet",
+      setting: "magnet",
+      on: shaky || (m.misses || 0) >= 2,
+      what: `When your cursor is within ${profile.magnetRadiusPx} pixels of a button, the button lights up and catches your click.`,
+      why: (m.misses || 0) >= 2 || shaky
+        ? `You missed ${m.misses || 0} click${m.misses === 1 ? "" : "s"} during the circle step, so buttons reach out further to help.`
+        : "You hit the circles accurately, so this starts off.",
+    },
+    {
+      title: "Ignore sliding clicks",
+      setting: "shakyClicks",
+      on: shaky,
+      what: `If the cursor slides more than ${profile.shakyPressDriftPx} pixels while you press the button, the click is ignored.`,
+      why: shaky
+        ? "Your hand shook while holding still, so a click that slides a long way is probably an accident."
+        : "Your hand was steady, so this starts off.",
+    },
+  ];
+  const settings = {
+    ignoreLeft: ch.recommendedOn, ignoreRight: ch.recommendedOn, ignoreMiddle: ch.recommendedOn,
+    holdOverrideMs: null,
+    filterRepeatedKeys: cards[2].on,
+    magnet: cards[3].on,
+    shakyClicks: cards[4].on,
+  };
+  return { cards, settings };
 }
 
 // ---------------------------------------------------------------------------
@@ -504,19 +537,17 @@ async function analyze() {
     explanation = await callServer("/gemini/explain", geminiStats, 10000);
   }
 
-  // 3. Save. Everything in the extension reads these from storage.local.
+  // 3. Decide the protections, then save. Everything in the extension reads these from storage.local.
+  const decision = decideProtections(measurements, profile, personal);
   const calibratedAt = new Date().toISOString();
   await api.storage.local.set({
     profile: { ...profile, measurements: roundAll(measurements), calibratedAt, personalModel: !!personal },
     personalModel: personal ? personal.model : null,
-    // The AI's decision becomes the active setting; the user can still change it in the popup.
-    ignoreLeft: profile.clickHold.recommendedOn,
-    ignoreRight: profile.clickHold.recommendedOn,
-    ignoreMiddle: profile.clickHold.recommendedOn,
-    holdOverrideMs: null,
+    // The AI's decisions become the active settings; the user can change them in the popup.
+    ...decision.settings,
   });
 
-  renderResults(measurements, profile, personal, explanation);
+  renderResults(measurements, profile, personal, explanation, decision);
 }
 
 const round1 = (v) => (v === null || v === undefined ? null : Math.round(v * 10) / 10);
@@ -533,45 +564,54 @@ function templateExplanation(m) {
   return `${first} These are measurements of cursor movement, not a medical diagnosis.`;
 }
 
-function renderResults(m, profile, personal, explanation) {
+function renderResults(m, profile, personal, explanation, decision) {
   show("results");
   $("explain-text").textContent = explanation ? explanation.text : templateExplanation(m);
   const tag = $("explain-tag");
-  tag.textContent = explanation ? "Explained by Gemini" : "Standard explanation";
+  tag.textContent = explanation ? "Explained by Gemini" : "Summary";
   tag.className = explanation ? "tag" : "tag plain";
 
-  const facts = [];
-  if (data.holdSkipped) facts.push("Hold step skipped.");
-  else if ((m.amplitudePx || 0) < 1) facts.push("Holding still: your cursor stayed within about 1 px.");
-  else facts.push(`Holding still: your cursor fluctuated about ${m.amplitudePx.toFixed(1)} px` +
-    (m.frequencyHz ? ` at about ${m.frequencyHz.toFixed(1)} times per second.` : "."));
-  if (!data.clickSkipped) facts.push(`Targets: ${m.targetsHit} hit, ${m.misses} missed clicks, ${m.accidentalDoubleClicks} accidental double-clicks.`);
-  if (m.keysTyped) facts.push(`Typing: about ${Math.round(m.medianKeyGapMs)} ms between keys, ${m.accidentalKeyRepeats} accidental double key presses.`);
-  if (personal && personal.report.calmCalledUnstableBefore !== undefined) {
-    facts.push(`Your calm movements flagged as unstable: ${pct(personal.report.calmCalledUnstableBefore)}% with the default model → ` +
-      `${pct(personal.report.calmCalledUnstableAfter)}% with your personal model.`);
+  // One card per protection: On/Off, what it does, why.
+  const box = $("protections");
+  box.innerHTML = "";
+  for (const card of decision.cards) {
+    const el = document.createElement("article");
+    el.className = "protection" + (card.on ? " on" : "");
+    const head = document.createElement("div");
+    head.className = "protection-head";
+    const h = document.createElement("h4");
+    h.textContent = card.title;
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.textContent = card.on ? "On" : "Off";
+    head.append(h, pill);
+    const what = document.createElement("p");
+    what.innerHTML = "<strong>What it does:</strong> ";
+    what.append(card.what);
+    const why = document.createElement("p");
+    why.className = "why";
+    why.innerHTML = "<strong>Why:</strong> ";
+    why.append(card.why);
+    el.append(head, what, why);
+    box.appendChild(el);
   }
+
+  // The raw numbers, for anyone curious (collapsed by default).
+  const facts = [];
+  if (!data.holdSkipped) facts.push(`Wobble while holding still: about ${(m.amplitudePx || 0).toFixed(1)} px` + (m.frequencyHz ? `, ${m.frequencyHz.toFixed(1)} times a second` : ""));
+  if (!data.clickSkipped) facts.push(`Circles: ${m.targetsHit} hit, ${m.misses} clicks outside the circles`);
+  if (m.keysTyped) facts.push(`Typing: about ${Math.round(m.medianKeyGapMs)} ms between keys, ${m.accidentalKeyRepeats} double key presses`);
   if (personal && personal.report.shakyDetectedBefore !== undefined) {
-    facts.push(`Your shaky movements detected: ${pct(personal.report.shakyDetectedBefore)}% → ${pct(personal.report.shakyDetectedAfter)}%.`);
+    facts.push(`Shaky movement detected: ${pct(personal.report.shakyDetectedBefore)}% (default model) → ${pct(personal.report.shakyDetectedAfter)}% (your model)`);
   }
   fillList("facts", facts);
 
-  const ch = profile.clickHold;
-  fillList("settings", [
-    `Hold period: ${(ch.left / 1000).toFixed(2)} s (left and middle), ${(ch.right / 1000).toFixed(2)} s (right). ` +
-      `Accidental-click protection is ${ch.recommendedOn ? "ON" : "OFF"}. ${ch.reason}`,
-    `Repeated key within ${profile.keyRepeatWindowMs} ms is treated as accidental.`,
-    `Second click within ${profile.doubleClickWindowMs} ms is treated as an accidental double-click.`,
-    `Buttons within ${profile.magnetRadiusPx} px of the steady cursor attract the click.`,
-    `Moving more than ${profile.shakyPressDriftPx} px while pressing counts as a shaky click.`,
-  ]);
-
   const status = $("model-status");
   if (personal) {
-    status.textContent = `Personal model trained on your movement (${personal.report.realWindows} of your movement windows, ${personal.report.seconds} s) and saved. It's now used on every page.`;
+    status.textContent = "Your personal model is saved and now used on every page.";
     status.className = "status ok";
   } else {
-    status.textContent = "Personal model needs the local ML server. Using the default model, with the settings above tuned to you.";
+    status.textContent = "The personal model needs the local ML server, so Smooth Mouse is using its standard model, with the settings above tuned to you.";
     status.className = "status warn";
   }
 }

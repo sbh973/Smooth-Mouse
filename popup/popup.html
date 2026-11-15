@@ -24,7 +24,9 @@
       <div><dt>Clicks</dt><dd id="clicks">–</dd></div>
       <div><dt>Double-clicks</dt><dd id="dblclicks">–</dd></div>
       <div><dt>Keys pressed</dt><dd id="keys">–</dd></div>
-      <div><dt>Quick clicks ignored</dt><dd id="clicks-ignored">–</dd></div>
+      <div><dt>Accidental clicks ignored</dt><dd id="clicks-ignored">–</dd></div>
+      <div><dt>Repeated keys ignored</dt><dd id="keys-filtered">–</dd></div>
+      <div><dt>Clicks caught by the magnet</dt><dd id="magnet-assists">–</dd></div>
       <div><dt>Samples in 3 s buffer</dt><dd id="recent">–</dd></div>
     </dl>
     <p class="note">Movement labels are engineering labels, not a diagnosis.</p>
@@ -59,7 +61,7 @@
 
   <section aria-labelledby="clicks-title">
     <h2 id="clicks-title">Accidental clicks</h2>
-    <p id="hold-info" class="note">A click only counts if you hold the button for the hold period.</p>
+    <p id="hold-info" class="note">Calibration switches these on for you if it sees shaking or accidental clicks.</p>
     <button class="switch row" role="switch" aria-checked="false" data-setting="ignoreLeft">
       <span class="switch-label">Ignore quick left clicks</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
@@ -72,12 +74,28 @@
       <span class="switch-label">Ignore quick middle clicks</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
     </button>
+    <button class="switch row" role="switch" aria-checked="false" data-setting="shakyClicks">
+      <span class="switch-label">Ignore sliding clicks</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
     <div class="slider-row">
       <label for="hold-slider">Hold period <output id="hold-value" for="hold-slider">–</output></label>
       <input type="range" id="hold-slider" min="40" max="800" step="10" aria-describedby="hold-source">
       <p id="hold-source" class="note"></p>
       <button id="hold-reset" class="secondary small-btn" hidden>Use calibrated value</button>
     </div>
+  </section>
+
+  <section aria-labelledby="help-title">
+    <h2 id="help-title">Typing and aiming</h2>
+    <button class="switch row" role="switch" aria-checked="false" data-setting="filterRepeatedKeys">
+      <span class="switch-label">Ignore repeated keys ("hhello" → "hello")</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
+    <button class="switch row" role="switch" aria-checked="false" data-setting="magnet">
+      <span class="switch-label">Button magnet</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
   </section>
 
   <footer>

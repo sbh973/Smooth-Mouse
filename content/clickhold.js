@@ -13,6 +13,11 @@
 //
 // While a protected button is held, a small ring around the cursor fills up;
 // when it's full, letting go will count as a click.
+//
+// Also here: "ignore sliding clicks". If the cursor slid further than the
+// calibrated distance between pressing and releasing, the click is ignored
+// (a shaky slip, not an aimed click). We measure on the STEADY cursor when
+// smoothing is active, so the raw shaking itself doesn't count as sliding.
 
 (() => {
   const api = globalThis.browser ?? globalThis.chrome;
@@ -22,16 +27,24 @@
   const SETTING = { left: "ignoreLeft", middle: "ignoreMiddle", right: "ignoreRight" };
   const DEFAULT_HOLD_MS = 150;
 
+  const DEFAULT_SLIDE_PX = 20;
+
   let calibratedHold = null; // { left, middle, right } ms from the last calibration
-  api.storage.local.get({ profile: null }).then(({ profile }) => {
-    calibratedHold = profile && profile.clickHold ? profile.clickHold : null;
-  });
+  let slideLimitPx = DEFAULT_SLIDE_PX;
+  const readProfile = (p) => {
+    calibratedHold = p && p.clickHold ? p.clickHold : null;
+    slideLimitPx = p && p.shakyPressDriftPx ? p.shakyPressDriftPx : DEFAULT_SLIDE_PX;
+  };
+  api.storage.local.get({ profile: null }).then(({ profile }) => readProfile(profile));
   api.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.profile) {
-      const p = changes.profile.newValue;
-      calibratedHold = p && p.clickHold ? p.clickHold : null;
-    }
+    if (area === "local" && changes.profile) readProfile(changes.profile.newValue);
   });
+
+  /** Cursor position to measure sliding on: the steady cursor if it's shown. */
+  const cursorPos = (e) => {
+    const st = SM.stabilize;
+    return st && st.engaged && st.x !== null ? { x: st.x, y: st.y } : { x: e.clientX, y: e.clientY };
+  };
 
   /** Hold period for a button: the popup override if set, else calibration, else the default. */
   function holdMs(name) {
@@ -40,6 +53,7 @@
     return (calibratedHold && calibratedHold[name]) || DEFAULT_HOLD_MS;
   }
   const protectedButton = (name) => SM.enabled && SM.settings && SM.settings[SETTING[name]];
+  const slideProtection = () => SM.enabled && SM.settings && SM.settings.shakyClicks;
 
   const presses = {};   // button number → { t, upT }
   let lastBlockedAt = 0;
@@ -50,13 +64,14 @@
     if (!e.isTrusted) return;
     const name = NAMES[e.button];
     if (!name) return;
-    presses[e.button] = { t: performance.now(), upT: null };
+    presses[e.button] = { t: performance.now(), upT: null, down: cursorPos(e), up: null };
     if (protectedButton(name)) startRing(e.clientX, e.clientY, holdMs(name));
   }, true);
 
   window.addEventListener("mouseup", (e) => {
     if (!e.isTrusted || !presses[e.button]) return;
     presses[e.button].upT = performance.now();
+    presses[e.button].up = cursorPos(e);
     stopRing();
   }, true);
 
@@ -66,7 +81,7 @@
   function judge(e) {
     if (!e.isTrusted) return; // our own / the page's script clicks
     const name = NAMES[e.button];
-    if (!name || !protectedButton(name)) return;
+    if (!name || !(protectedButton(name) || slideProtection())) return;
     if (e.type === "click" && e.detail === 0) return; // Enter/Space on a button, not the mouse
     const press = presses[e.button];
     if (!press) return;
@@ -77,14 +92,26 @@
       // it through (see README: Firefox's ui.context_menus.after_mouseup).
       return;
     }
+    // 1. Too quick? (hold period)
     const held = (press.upT ?? performance.now()) - press.t;
-    if (held >= holdMs(name)) return; // held long enough: a real click
+    if (protectedButton(name) && held < holdMs(name)) {
+      return block(e, `Smooth Mouse ignored a quick ${name} click. Hold for ${(holdMs(name) / 1000).toFixed(2)} s to click.`);
+    }
+    // 2. Slid too far while pressed?
+    if (slideProtection() && press.up) {
+      const slid = Math.hypot(press.up.x - press.down.x, press.up.y - press.down.y);
+      if (slid > slideLimitPx) {
+        return block(e, `Smooth Mouse ignored a click where the cursor slid ${Math.round(slid)} px.`);
+      }
+    }
+  }
 
+  function block(e, message) {
     e.preventDefault();
     e.stopImmediatePropagation();
     lastBlockedAt = performance.now();
     SM.clickHold.blocked++;
-    toast(`Smooth Mouse ignored a quick ${name} click. Hold for ${(holdMs(name) / 1000).toFixed(2)} s to click.`);
+    toast(message);
   }
 
   // Registered BEFORE stabilize.js's click listener (see manifest order), so a
@@ -94,7 +121,7 @@
   window.addEventListener("contextmenu", judge, true);  // right button (menu)
   window.addEventListener("dblclick", (e) => {
     // A double-click made of a blocked click is blocked too.
-    if (e.isTrusted && performance.now() - lastBlockedAt < 600 && protectedButton("left")) {
+    if (e.isTrusted && performance.now() - lastBlockedAt < 600 && (protectedButton("left") || slideProtection())) {
       e.preventDefault();
       e.stopImmediatePropagation();
     }

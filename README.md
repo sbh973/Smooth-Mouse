@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 5 + hold period and accidental-click protection. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 6: click and key protection, button magnet; calibration picks and explains every protection. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -223,15 +223,13 @@ Put your key in `.env` (never in `.env.example`, which is committed): `GEMINI_AP
 
 A shaky hand often produces **quick accidental taps**. With protection on, a click only counts if the button is **held for the hold period**. Left, right and middle each have their own switch.
 
-- **The AI picks the hold period during calibration** (`calibrate.js → bestHold / chooseClickHold`). In the circle steps (5 left-clicks, then 3 right-clicks) it times how long the button is held on every press:
+- **The AI picks the hold period during calibration** (`calibrate.js → bestHold`). In the circle steps (5 left-clicks, then 3 right-clicks) it times how long the button is held on every press:
   - **real clicks:** presses that hit a circle
   - **accidental clicks:** every press that lands *outside* a circle (shaky taps, slips)
-  - It tries every possible hold time and keeps the one with the fewest mistakes. A real click that would be ignored counts **3×**; an accidental click that would get through counts 1×. Ties go to the shorter hold. The hold time is then placed in the gap between the accidental taps it catches and the quickest real click.
-  - Because blocking a real click is so costly, a miss that was just an aim error (a normal-length press slightly off the circle) can't push the hold time above your real clicks.
-  - No accidental clicks? Then it's 80% of your quickest real click, so every normal click still counts.
-  - Clamped to 0.04–0.5 s. Middle uses the left value; right uses its own 3 clicks.
-  - Protection is turned **on** automatically if calibration saw a resting wobble ≥ 1.5 px or at least one accidental click quicker than your quickest real click. Otherwise it stays off.
-  - Example: real clicks held 0.11–0.18 s, 3 taps outside the circles held 0.03–0.06 s → hold **0.09 s**, which ignores all 3 taps and keeps all real clicks.
+  - **Rule 1, never block real clicks:** the hold time stays below 85% of your quickest real click.
+  - **Rule 2, catch the quick taps:** within that limit, it goes halfway between your longest quick accidental tap and your quickest real click.
+  - No quick taps? Then it's 80% of your quickest real click. Kept between 0.03 and 0.5 s.
+  - *Bug we fixed:* an earlier "fewest mistakes" rule chose 0.5 s for a very shaky tester (39 clicks outside the circles), which would have blocked all 5 of their real clicks. Rule 1 makes that impossible; the same data now gives 0.05 s.
 - **While you hold** a protected button, a ring around the cursor fills up (orange → teal). Let go after it's full and the click counts.
 - **Quick taps are ignored** with a message: "Smooth Mouse ignored a quick left click. Hold for 0.09 s to click." The popup counts them.
 - **Popup → Accidental clicks:** switches for left, right and middle, the hold period with the reason calibration chose it, a slider to override it, and *Use calibrated value* to undo the override.
@@ -245,6 +243,35 @@ Simulated tests: 9/9 cases pass, e.g. a 60 ms tap is ignored, a 200 ms press cli
 2. In the popup, turn on **Ignore quick left clicks** if calibration left it off.
 3. On the demo page, tap **Send** very quickly: nothing is sent, and a message says the click was ignored. Press and hold until the ring turns teal, then release: "Message sent".
 4. Drag the **Hold period** slider to change it; press **Use calibrated value** to go back.
+
+## Calibration results: your protections
+
+The results screen shows a short summary (from Gemini when available), then **one card per protection** with **On/Off**, **What it does** (with your setting in plain words) and **Why** (based on your calibration). The raw numbers are under *Details*. Calibration switches each protection on or off for you; you can change any of them in the popup.
+
+| Protection | Turned on when calibration sees… | Your setting comes from… |
+|---|---|---|
+| Steady cursor | always on (adapts live) | your personal ML model |
+| Ignore quick clicks | shaking, or accidental taps quicker than your real clicks | how long you held real vs accidental clicks |
+| Ignore repeated keys | shaking, or a double key press while typing | 45% of your typical time between keys (0.06–0.3 s) |
+| Button magnet | shaking, or 2+ clicks outside the circles | 12 px + 1.5 × your wobble + 2 × misses (12–48 px) |
+| Ignore sliding clicks | shaking | 2 × how far your cursor usually slides during a click (8–40 px) |
+
+## Checkpoint 6: key protection, sliding clicks, button magnet
+
+- **Ignore repeated keys** (`keyguard.js`): the same character key pressed again within your repeat window is cancelled before the page sees it, so "hhello" becomes "hello". It never touches keys held down on purpose (auto-repeat), modifier/control keys (Shift, Ctrl, arrows, Backspace, Enter…), shortcuts like Cmd+C, or input-method typing.
+- **Ignore sliding clicks** (`clickhold.js`): if the cursor slid further than your limit between pressing and releasing, the click is ignored. It's measured on the *steady* cursor when smoothing is active, so raw shaking alone doesn't count.
+- **Button magnet** (`assist.js`): when the cursor isn't on anything clickable but is within your magnet radius of a button or link, the nearest one gets a teal outline and catches the click (focused, then clicked at its centre). It stays out of the way when you're already on something clickable.
+- **Why we don't block every click during "unstable" movement:** for someone with a constant tremor, that would mean they could never click. With the steady cursor, their clicks land where they're aiming instead. (Risky buttons get a confirmation dialog in Checkpoint 7.)
+- **Popup:** switches for each protection and counters: *Accidental clicks ignored*, *Repeated keys ignored*, *Clicks caught by the magnet*.
+
+Simulated tests: 12/12 pass (accidental "hh" 40 ms apart is dropped, a real "ll" 150 ms apart is kept, held keys, Backspace and Cmd+C are untouched, a 60 px slide is ignored, an 8 px one isn't, a click 10 px from a small button goes to the button, one 60 px away or directly on it is normal).
+
+### Test it
+1. Reload the extension, then **Calibrate** (or switch protections on in the popup).
+2. **Repeated keys:** in the demo message, quickly double-tap "h" then type "ello". You get "hello" and a message.
+3. **Magnet:** move near the tiny ⚙ / ? or **B** / *I* / U buttons without touching them; one lights up. Click: the status line names that button.
+4. **Sliding clicks:** press on **Save draft**, slide far away while holding, release: ignored, with a message.
+5. The popup counters go up as each protection helps.
 
 ## Privacy
 All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.

@@ -28,6 +28,8 @@
         "content/controller.js",
         "content/live.js",
         "content/clickhold.js",
+        "content/assist.js",
+        "content/keyguard.js",
         "content/stabilize.js",
         "content/viz.js",
         "content/main.js"

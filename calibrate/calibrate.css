@@ -52,3 +52,16 @@ button { font: inherit; cursor: pointer; min-height: 48px; border-radius: 12px; 
 .facts { padding-left: 20px; margin: 0; }
 .facts li { margin: 4px 0; }
 .note { font-size: 14px; color: var(--muted); margin-top: 20px; }
+
+.hint { color: var(--muted); margin: 0 0 10px; }
+.protections { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.protection { border: 2px solid #D9E2EC; border-radius: 14px; padding: 14px 16px; background: #fff; }
+.protection.on { border-color: var(--teal); }
+.protection-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.protection h4 { margin: 0; font-size: 18px; }
+.protection p { margin: 6px 0 0; font-size: 16px; }
+.protection .why { color: var(--muted); }
+.pill { font-size: 14px; font-weight: 800; padding: 2px 12px; border-radius: 999px; background: #E4E7EB; color: #3E4C59; }
+.protection.on .pill { background: var(--teal); color: #fff; }
+.details { margin-top: 16px; }
+.details summary { cursor: pointer; font-weight: 700; color: var(--muted); min-height: 44px; display: flex; align-items: center; }

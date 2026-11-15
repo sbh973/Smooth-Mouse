@@ -10,6 +10,9 @@ window.SmoothMouseDefaults = {
   ignoreRight: false,         // ...RIGHT clicks
   ignoreMiddle: false,        // ...MIDDLE clicks
   holdOverrideMs: null,       // null = use the hold period chosen by calibration
+  shakyClicks: false,         // ignore clicks where the cursor slid too far while pressed
+  filterRepeatedKeys: false,  // ignore accidental double key presses ("hhello" → "hello")
+  magnet: false,              // nearby buttons light up and catch the click
   usePersonalModel: true,     // use the model trained during calibration (Checkpoint 5)
   showBadgeEverywhere: false, // debug badge on all sites (always on the demo page)
 };

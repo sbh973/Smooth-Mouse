@@ -50,6 +50,8 @@ const fields = {
   dblclicks: document.getElementById("dblclicks"),
   keys: document.getElementById("keys"),
   clicksIgnored: document.getElementById("clicks-ignored"),
+  keysFiltered: document.getElementById("keys-filtered"),
+  magnetAssists: document.getElementById("magnet-assists"),
   recent: document.getElementById("recent"),
 };
 
@@ -68,6 +70,8 @@ async function refresh() {
     fields.dblclicks.textContent = stats.dblclicks;
     fields.keys.textContent = stats.keys;
     fields.clicksIgnored.textContent = stats.clicksIgnored ?? 0;
+    fields.keysFiltered.textContent = stats.keysFiltered ?? 0;
+    fields.magnetAssists.textContent = stats.magnetAssists ?? 0;
     fields.recent.textContent = stats.recentSize;
   } catch {
     // Happens on browser pages (about:, chrome://, the add-ons store) where

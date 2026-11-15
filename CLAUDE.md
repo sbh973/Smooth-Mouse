@@ -209,4 +209,5 @@ Tremor trends page (by day and time of day, a "report for my doctor"), the Decis
 We tried a 5-filter library + auto-tuner + Filter lab and **removed it**: too complicated, nobody would use it.
 The priority instead: features users actually feel, set automatically by calibration.
 - **Done:** hold period + ignoring accidental clicks per button (left/right/middle), chosen by calibration (`content/clickhold.js`, `calibrate.js → chooseClickHold`), with popup switches and an override slider.
-- **Still to do from the original plan:** key-repeat filter and target assistance (CP6), risky-click confirmation with Gemini + shaky-hand simulator (CP7), before/after test (CP8), polish + README/DEVPOST/DEMO (CP9).
+- **Done (CP6):** repeated-key filter, sliding-click blocking, button magnet; calibration decides every protection (on/off + setting) and the results screen explains each in plain words (`decideProtections`). Calibration uses 5 circles + 3 right-clicks; every click outside a circle counts as accidental; the hold time never blocks real clicks.
+- **Still to do:** risky-click confirmation with Gemini + shaky-hand simulator (CP7), before/after test (CP8), polish + README/DEVPOST/DEMO (CP9).
