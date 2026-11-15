@@ -24,6 +24,22 @@ for (const btn of switches) {
   });
 }
 
+// --- Sliders: every <input type="range" data-range-setting="..."> stores a number.
+for (const input of document.querySelectorAll("[data-range-setting]")) {
+  const key = input.dataset.rangeSetting;
+  const out = document.getElementById(input.id + "-value");
+  const show = (v) => {
+    input.value = v;
+    out.textContent = `${v}%`;
+    input.setAttribute("aria-valuetext", v == 0 ? "0 percent, adaptive only" : `${v} percent`);
+  };
+  api.storage.local.get({ [key]: DEFAULTS[key] }).then((st) => show(st[key]));
+  input.addEventListener("input", () => {
+    show(Number(input.value));
+    api.storage.local.set({ [key]: Number(input.value) });
+  });
+}
+
 // --- Live stats: ask the content script in the active tab twice a second.
 const statusEl = document.getElementById("status");
 const fields = {

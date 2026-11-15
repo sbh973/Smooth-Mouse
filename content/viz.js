@@ -116,7 +116,8 @@
       return;
     }
     set("sm-metric-class", SM.live.ready ? SM.live.label : "loading…");
-    set("sm-metric-strength", `${Math.round(st.strength * 100)}% (${st.level})`);
+    const floorPct = SM.settings.minSmoothing || 0;
+    set("sm-metric-strength", `${Math.round(Math.max(st.strength * 100, floorPct))}% (${st.level}${floorPct ? `, min ${floorPct}%` : ""})`);
 
     const now = performance.now();
     const pts = st.trail.filter((p) => p.t >= now - VIEW_MS);

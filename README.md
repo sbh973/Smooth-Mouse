@@ -170,6 +170,8 @@ model probabilities ──► controller ──► smoothing strength 0..1
 
 **Fix for big, sharp movements:** an earlier version only cut big shakes by 11–37%. Three causes: (1) the "deliberate movement" override measured only 80 ms with no straightness check, so a big shake looked like a reach and turned smoothing off; (2) the filter's speed sensitivity let fast shakes through; (3) the model had never seen shakes over 20 px. We fixed all three, plus made medium smoothing stronger.
 
+**Minimum smoothing slider (popup, 0–100%):** by default (0%) fast, *straight* moves across the screen are treated as deliberate and not smoothed, so there's no lag. The slider sets a floor that neither the model nor the override can go below, so big, sharp moves get smoothed too: the cursor glides in behind the hand. Simulated 700 px sharp jerk: at 50% it trails by up to ~120 px and catches up within ~30–160 ms; at 100% its peak speed is cut ~3× but it takes ~1.5 s to arrive (best for severe involuntary jerks).
+
 **Trade-off we chose:** maximum smoothing. A user *with* a tremor making a fast deliberate reach sees the steady cursor trail by up to about 70 px at peak speed. Lowering the override threshold reduces that lag but smooths sudden jerks less (−68% instead of −89%).
 
 **Limitations:**

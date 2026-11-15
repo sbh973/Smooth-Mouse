@@ -35,6 +35,13 @@
       <span class="switch-label">Stabilize cursor</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
     </button>
+    <div class="slider-row">
+      <label for="min-smoothing">Minimum smoothing <output id="min-smoothing-value" for="min-smoothing">0%</output></label>
+      <input type="range" id="min-smoothing" data-range-setting="minSmoothing" min="0" max="100" step="5" value="0"
+             aria-describedby="min-smoothing-help">
+      <p id="min-smoothing-help" class="note">0% = adaptive: smooths only when shaking is detected, no lag when calm.
+        100% = always strong, even for big, fast moves (the cursor glides behind your hand).</p>
+    </div>
     <button class="switch row" role="switch" aria-checked="true" data-setting="redirectClicks">
       <span class="switch-label">Click where the steady cursor is</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>

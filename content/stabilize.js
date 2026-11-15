@@ -85,9 +85,21 @@
     return (net / dt) * straightness;
   }
 
+  /**
+   * "Minimum smoothing" from the popup slider (0-100%), as 0..1.
+   * 0 = fully adaptive (the model decides; no lag when calm).
+   * 1 = always strong, for EVERY movement, including big, fast, straight ones
+   *     (the cursor then glides in behind the hand instead of jumping).
+   * Neither the model nor the "deliberate movement" override can go below it.
+   */
+  const floor = () => Math.min(1, Math.max(0, ((SM.settings && SM.settings.minSmoothing) || 0) / 100));
+
+  /** What the user gets: the model's strength, but never below the floor. */
+  const targetStrength = () => Math.max(state.strength, floor());
+
   function step(x, y, t, isRealSample) {
     const override = Controller.override(directedSpeed(t, x, y));
-    const eff = state.strength * (1 - override);
+    const eff = Math.max(floor(), state.strength * (1 - override));
     filter.setParams(Controller.filterParams(eff));
     const f = filter.filter(x, y, t);
 
@@ -95,7 +107,7 @@
     // The fade follows the controller's slow, slewed strength, NOT the fast
     // override: a deliberate reach loosens the filter (above), so the steady
     // cursor catches up smoothly instead of snapping between two positions.
-    const w = Math.min(1, state.strength / BLEND_FULL_AT);
+    const w = Math.min(1, targetStrength() / BLEND_FULL_AT);
     state.x = x + w * (f.x - x);
     state.y = y + w * (f.y - y);
     state.rawX = x;
@@ -148,9 +160,9 @@
   function updateEngaged() {
     if (!active()) {
       state.engaged = false;
-    } else if (!state.engaged && state.strength >= ENGAGE_AT) {
+    } else if (!state.engaged && targetStrength() >= ENGAGE_AT) {
       state.engaged = true;
-    } else if (state.engaged && state.strength <= DISENGAGE_AT) {
+    } else if (state.engaged && targetStrength() <= DISENGAGE_AT) {
       const gap = Math.hypot(state.x - state.rawX, state.y - state.rawY);
       if (gap < 1) state.engaged = false; // only swap back once they line up
     }

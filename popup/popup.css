@@ -36,3 +36,8 @@ footer { margin-top: 16px; }
 #movement[data-label="unstable"] { color: var(--warn); }
 #movement[data-label="stable"] { color: var(--teal); }
 .switch.row + .switch.row { margin-top: 6px; }
+
+.slider-row { background: #fff; border: 1px solid #BCCCDC; border-radius: 10px; padding: 10px 12px; margin: 6px 0; }
+.slider-row label { display: flex; justify-content: space-between; font-weight: 500; }
+.slider-row output { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--teal); }
+.slider-row input[type="range"] { width: 100%; min-height: 32px; accent-color: var(--teal); }

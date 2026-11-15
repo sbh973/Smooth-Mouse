@@ -139,7 +139,8 @@
     const st = SM.stabilize;
     badge.querySelector(".sm-badge-strength").textContent =
       st && SM.settings && SM.settings.stabilize
-        ? `Smoothing: ${Math.round(st.strength * 100)}% (${st.level})`
+        ? `Smoothing: ${Math.round(Math.max(st.strength, (SM.settings.minSmoothing || 0) / 100) * 100)}% (${st.level}` +
+          `${SM.settings.minSmoothing ? `, min ${SM.settings.minSmoothing}%` : ""})`
         : "Smoothing: off";
   }
 
