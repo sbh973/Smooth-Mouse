@@ -112,6 +112,10 @@
     lastBlockedAt = performance.now();
     SM.clickHold.blocked++;
     toast(message);
+    // On the demo page only: tell the page, so its status line can say so.
+    if (document.querySelector('meta[name="smooth-mouse-demo"]')) {
+      document.dispatchEvent(new CustomEvent("smoothmouse:ignored"));
+    }
   }
 
   // Registered BEFORE stabilize.js's click listener (see manifest order), so a

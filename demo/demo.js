@@ -4,9 +4,21 @@
 
 // --- Fake email actions (nothing is really sent or deleted) ----------------
 const composeStatus = document.getElementById("compose-status");
-function say(text) {
+let sayTimer = null;
+/** Show what just happened, then clear it after 4 s so old messages never linger. */
+function say(text, kind = "ok") {
   composeStatus.textContent = `${text} (${new Date().toLocaleTimeString()})`;
+  composeStatus.className = `status ${kind}`;
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(() => {
+    composeStatus.textContent = "";
+    composeStatus.className = "status";
+  }, 4000);
 }
+// Smooth Mouse tells this demo page when it ignores a click, so it's obvious nothing happened.
+document.addEventListener("smoothmouse:ignored", () =>
+  say("Smooth Mouse ignored that click, so nothing happened.", "warn")
+);
 document.getElementById("compose").addEventListener("submit", (e) => {
   e.preventDefault();
   say("Message sent (demo only, nothing was really sent).");
