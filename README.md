@@ -258,7 +258,11 @@ The results screen shows a short summary (from Gemini when available), then **on
 
 ## Checkpoint 6: key protection, sliding clicks, button magnet
 
-- **Ignore repeated keys** (`keyguard.js`): the same character key pressed again within your repeat window is cancelled before the page sees it, so "hhello" becomes "hello". It never touches keys held down on purpose (auto-repeat), modifier/control keys (Shift, Ctrl, arrows, Backspace, Enter…), shortcuts like Cmd+C, or input-method typing.
+- **Ignore repeated keys** (`keyguard.js`): a second press of the same key is dropped (so "hhello" becomes "hello") when either:
+  1. it came **extremely fast**, within your calibrated window (a bounce; nobody types a real double letter that fast), or
+  2. it came **fairly fast** (within 2× your normal time between keys) **and the double doesn't belong in a word**: a doubled letter at the start of a word ("hhello", "ttoday"), a letter English almost never doubles (hh, jj, kk, qq, vv, ww, xx, yy, ii, uu, aa), or a double space.
+
+  Real double letters inside words ("hello", "book", "coffee") are kept, even when typed fast. *Why rule 2 exists:* a fast typist's accidental "hh" can be just as quick as their real "ll", so timing alone can't tell them apart; where the double appears can. The word rules assume English, and rare words starting with a double letter ("aardvark") lose a letter. It never touches held keys, Backspace/Enter/arrows, shortcuts like Cmd+C, digits/punctuation, or input-method typing. Tests: 12/12 (e.g. "hhello" → "hello", "thhe" → "the", "coffee" stays, "hhello" typed slowly on purpose stays).
 - **Ignore sliding clicks** (`clickhold.js`): if the cursor slid further than your limit between pressing and releasing, the click is ignored. It's measured on the *steady* cursor when smoothing is active, so raw shaking alone doesn't count.
 - **Button magnet** (`assist.js`): when the cursor isn't on anything clickable but is within your magnet radius of a button or link, the nearest one gets a teal outline and catches the click (focused, then clicked at its centre). It stays out of the way when you're already on something clickable.
 - **Why we don't block every click during "unstable" movement:** for someone with a constant tremor, that would mean they could never click. With the steady cursor, their clicks land where they're aiming instead. (Risky buttons get a confirmation dialog in Checkpoint 7.)

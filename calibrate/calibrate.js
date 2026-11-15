@@ -468,9 +468,11 @@ function decideProtections(m, profile, personal) {
       title: "Ignore repeated keys",
       setting: "filterRepeatedKeys",
       on: (m.accidentalKeyRepeats || 0) > 0 || shaky,
-      what: `If the same key is pressed twice within ${sec(profile.keyRepeatWindowMs)}, the second press is ignored. "hhello" becomes "hello".`,
+      what: `When a key is pressed twice by accident, the extra letter is dropped: "hhello" becomes "hello". ` +
+        `Real double letters like the "ll" in "hello" are kept.`,
       why: m.keysTyped
-        ? `You type about one key every ${sec(m.medianKeyGapMs || 0)}. A shaky double-press is much quicker than that` +
+        ? `You type about one key every ${sec(m.medianKeyGapMs || 0)}, so a second press of the same key much faster than that, ` +
+          `or a double letter that doesn't belong in a word (like "hh" or a double letter at the start of a word), is treated as an accident` +
           ((m.accidentalKeyRepeats || 0) > 0 ? `, and we saw ${m.accidentalKeyRepeats} during the typing step.` : ".")
         : "You skipped the typing step, so this uses a standard setting.",
     },
