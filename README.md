@@ -110,7 +110,7 @@ python ml/train.py ~/Downloads/smooth-mouse-recording-*.json
 ```
 
 ### How it works
-1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches (from slow moves up to fast 9,000 px/s flicks), overshoot corrections, holds and slow drags. `unstable` = the same plus a 4–10 Hz, 2–20 px oscillation. `uncertain` = very small oscillations (0.7–2 px) or fast intentional scribbles. Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps with ±1.5 ms jitter, 0.5 px steps, no event when the cursor doesn't move.
+1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches (from slow moves up to fast 9,000 px/s flicks), overshoot corrections, holds and slow drags. `unstable` = the same plus a 3.5–10 Hz, 2–50 px oscillation. `uncertain` = very small oscillations (0.7–2 px) or slow intentional back-and-forth scribbles (1–2.5 Hz). Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps with ±1.5 ms jitter, 0.5 px steps, no event when the cursor doesn't move.
 2. **Windows** (`shared/config.json`). Each window is 400 ms, resampled to 100 Hz (40 points). Live, a new window is classified every 50 ms. We tried 250 ms first, but a 4 Hz tremor only completes one cycle in 250 ms, and accuracy was about 79% vs 88% at 400 ms.
 3. **Features** (`features.py`). Mean speed, speed variance, acceleration variance, jerk RMS (all log-scaled), direction reversals, the *share* of velocity power in the 4–12 Hz band (FFT), the *strength* of that band (`band_amp`, so a 1 px wobble and a 15 px shake look different), `straightness` (net distance ÷ path length: a flick ≈ 1, a shake ≈ 0), and two combined features, `wobble` = band strength × (1 − straightness) and `travel` = speed × straightness, which let a linear model learn "fast **and** straight = intentional".
 4. **Model** (`train.py`). `StandardScaler` + multinomial `LogisticRegression`. It exports to about 30 numbers that JavaScript can run in a few lines.
@@ -118,11 +118,11 @@ python ml/train.py ~/Downloads/smooth-mouse-recording-*.json
 ### Results (synthetic test set, 1,800 windows)
 | | precision | recall |
 |---|---|---|
-| stable | 0.85 | 0.91 |
-| uncertain | 0.81 | 0.78 |
-| unstable | 0.91 | 0.88 |
+| stable | 0.83 | 0.87 |
+| uncertain | 0.81 | 0.79 |
+| unstable | 0.96 | 0.93 |
 
-**Accuracy: 85.6%** (decision tree for comparison: 87.1%). Most mistakes involve the borderline `uncertain` class, which only moves smoothing one step (light ↔ medium ↔ strong). Calm movement (including fast flicks) is called `unstable` about 2% of the time, and live predictions are smoothed over a few windows so a single odd window can't flip the label.
+**Accuracy: 86.4%** (decision tree for comparison: 88.2%). Most mistakes involve the borderline `uncertain` class, which only moves smoothing one step (light ↔ medium ↔ strong). Calm movement (including fast flicks) is called `unstable` about 2% of the time, and live predictions are smoothed over a few windows so a single odd window can't flip the label.
 
 **A bug we caught (good story for judges):** our first synthetic `unstable` data also had extra random noise. The model scored 88%, but in a live test it called a smooth, real-looking 6 Hz shake `uncertain`: it had learned "noisy = unstable" instead of "oscillating = unstable." We gave every class the same noise, added the `band_amp` feature and a longer window, and now smooth shakes are caught. Lesson: a high test score on synthetic data can hide a shortcut, so test on realistic inputs too.
 
@@ -147,12 +147,12 @@ model probabilities ──► controller ──► smoothing strength 0..1
                            └─ fast movement in one direction → turn smoothing down
 ```
 
-- **One Euro filter** (`filters.js`): a low-pass filter whose cutoff rises with speed. The controller picks its parameters, from barely-there (6 Hz cutoff) to strong (0.6 Hz, which cuts a 5 Hz tremor by about 85%).
+- **One Euro filter** (`filters.js`): a low-pass filter whose cutoff rises with speed. The controller picks its parameters, from barely-there (6 Hz cutoff) to strong (0.5 Hz, with very low speed sensitivity so even big, fast shakes are cut by about 90%).
 - **Controller** (`controller.js`):
-  - **Levels:** light (stable), medium (uncertain) and strong (unstable).
+  - **Levels:** light (stable, 0), medium (uncertain, 0.75) and strong (unstable, 1).
   - **Hysteresis:** it goes up a level as soon as the model is ≥ 55% sure, but only goes down after the evidence drops below 35% for 400 ms.
   - **Gradual strength:** strength rises in about 150 ms and falls over about 600 ms, so nothing jumps.
-  - **Override:** fast movement in one direction (net displacement over 80 ms faster than 350–1,000 px/s) loosens the filter whatever the model says. A tremor goes back and forth, so it doesn't trigger this. A deliberate reach does, which keeps the user in control.
+  - **Override:** fast, *straight* movement loosens the filter whatever the model says: net displacement over 200 ms × straightness (net ÷ path length), from 400 to 1,200 px/s. A deliberate reach triggers it, which keeps the user in control. A shake, even a big, fast one, folds back on itself, so it doesn't.
 - **Steady cursor** (`stabilize.js`): only while smoothing is active do we hide the real cursor and draw our own. Calm movement uses the real cursor, so it has **zero added lag**.
 - **Clicks**: if the steady cursor is over a different element than the real one, the real click is cancelled and a click is sent to the element under the steady cursor.
 
@@ -160,9 +160,17 @@ model probabilities ──► controller ──► smoothing strength 0..1
 
 | Movement | Smoothing | Jitter (raw → steady) | Lag |
 |---|---|---|---|
-| Calm drag / fast flick | off | unchanged | 0 px |
-| 6 Hz, 8 px shake | strong | 5.4 → 0.6 px (**−88%**) | n/a |
-| 5 Hz, 12 px shake | strong | 6.0 → 0.8 px (**−87%**) | n/a |
+| Calm drag / fast flick / 800 px reach | off | unchanged | 0 px |
+| 6 Hz, 8 px shake | strong | 5.4 → 0.5 px (**−91%**) | n/a |
+| 5 Hz, 20 px shake | strong | 10.4 → 1.1 px (**−90%**) | n/a |
+| 4 Hz, 40 px shake | strong | 14.7 → 2.0 px (**−86%**) | n/a |
+| 5 Hz, 60 px shake | strong | 30.8 → 3.5 px (**−89%**) | n/a |
+| 7 Hz, 35 px shake | strong | 36.9 → 2.8 px (**−92%**) | n/a |
+| Sudden 70 px jerks | strong | 16.1 → 1.8 px (**−89%**) | n/a |
+
+**Fix for big, sharp movements:** an earlier version only cut big shakes by 11–37%. Three causes: (1) the "deliberate movement" override measured only 80 ms with no straightness check, so a big shake looked like a reach and turned smoothing off; (2) the filter's speed sensitivity let fast shakes through; (3) the model had never seen shakes over 20 px. We fixed all three, plus made medium smoothing stronger.
+
+**Trade-off we chose:** maximum smoothing. A user *with* a tremor making a fast deliberate reach sees the steady cursor trail by up to about 70 px at peak speed. Lowering the override threshold reduces that lag but smooths sudden jerks less (−68% instead of −89%).
 
 **Limitations:**
 - **Untrusted clicks:** redirected clicks are created by a script (`isTrusted = false`). Most sites accept them, but some ignore them (e.g. file pickers, some payment and anti-bot widgets). Turn off "Click where the steady cursor is" in the popup if a site misbehaves.

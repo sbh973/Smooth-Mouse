@@ -10,14 +10,14 @@
 //      and stay there for 400 ms. So strength doesn't flicker on and off.
 //   2. Slew limits: strength rises fast (~150 ms to full) when a shake starts,
 //      and falls gently (~600 ms) when it stops, so the cursor never "jumps".
-//   3. Responsiveness override: fast movement in ONE direction (a deliberate
-//      reach) turns smoothing down immediately, whatever the model says.
-//      A tremor goes back and forth, so its net displacement stays small.
+//   3. Responsiveness override: fast, STRAIGHT movement in one direction (a
+//      deliberate reach) turns smoothing down, whatever the model says.
+//      A tremor, even a big one, goes back and forth, so it doesn't count.
 
 (() => {
   const SM = (window.SmoothMouse = window.SmoothMouse || {});
 
-  const LEVEL_STRENGTH = { light: 0, medium: 0.5, strong: 1 };
+  const LEVEL_STRENGTH = { light: 0, medium: 0.75, strong: 1 };
   const RANK = { light: 0, medium: 1, strong: 2 };
 
   const ENTER = 0.55;        // probability needed to go up a level
@@ -26,10 +26,10 @@
   const ATTACK_PER_S = 1 / 0.15;  // strength units per second going up
   const RELEASE_PER_S = 1 / 0.6;  // ...and going down
 
-  // Directed speed (net displacement over ~80 ms) at which we start / finish
-  // handing control back to the raw cursor.
-  const OVERRIDE_FROM = 350; // px/s
-  const OVERRIDE_TO = 1000;  // px/s
+  // Directed speed (see stabilize.js: straight-line speed over 200 ms) at which
+  // we start / finish handing control back to the raw cursor.
+  const OVERRIDE_FROM = 400;  // px/s
+  const OVERRIDE_TO = 1200;   // px/s
 
   const lerp = (a, b, s) => a + (b - a) * s;
   const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -83,14 +83,15 @@
     /**
      * One Euro parameters for an effective strength s (0..1).
      *   s = 0   → minCutoff 6 Hz,   beta 0.01   (barely any smoothing)
-     *   s = 1   → minCutoff 0.6 Hz, beta 0.0008 (a 5 Hz tremor is cut by ~85%)
-     * A low beta matters for tremor: a shake is FAST back-and-forth movement,
-     * and a high beta would let it through just because it's fast.
+     *   s = 1   → minCutoff 0.5 Hz, beta 0.0002 (a 5 Hz tremor is cut by ~90%)
+     * A very low beta matters for tremor: a big shake is FAST back-and-forth
+     * movement, and a high beta would let it through just because it's fast.
+     * Deliberate fast moves are handled by the override instead.
      */
     static filterParams(s) {
       return {
-        minCutoff: lerp(6.0, 0.6, s),
-        beta: lerp(0.01, 0.0008, s),
+        minCutoff: lerp(6.0, 0.5, s),
+        beta: lerp(0.01, 0.0002, s),
         dCutoff: 1.0,
       };
     }

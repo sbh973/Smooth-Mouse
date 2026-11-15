@@ -12,9 +12,9 @@ Labels (engineering labels, NOT medical diagnoses):
   stable     intentional movement: smooth reaches, small corrections, holds,
              slow drags (plus the tiny jitter every hand has)
   unstable   the same movements plus an involuntary oscillation of
-             4-10 Hz and 2-20 px
+             3.5-10 Hz and 2-50 px
   uncertain  borderline cases: very small oscillations (0.7-2 px), or fast
-             intentional back-and-forth "scribbles" (1.5-3.5 Hz)
+             intentional back-and-forth "scribbles" (1-2.5 Hz)
 
 Run directly to print a quick summary: python ml/synth.py
 """
@@ -129,7 +129,7 @@ def make_base(rng, span_s):
 def make_scribble(rng):
     """Fast intentional back-and-forth (scribbling, shaking to find the cursor)."""
     p0 = rng.uniform([100, 100], [1200, 700])
-    freq = rng.uniform(1.5, 3.5)
+    freq = rng.uniform(1.0, 2.5)  # slower than any tremor we model (>= 3.5 Hz)
     amp = rng.uniform(15, 80)
     angle = rng.uniform(0, 2 * np.pi)
     drift = rng.uniform(-150, 150, size=2)
@@ -193,8 +193,10 @@ def sample_like_browser(rng, f, span_ms, noise_px):
 
 
 # Default involuntary-oscillation ranges for the "unstable" class.
-UNSTABLE_AMP = (2, 20)   # px
-UNSTABLE_FREQ = (4, 10)  # Hz
+# Up to 50 px: big, sharp shakes must be smoothed too (users reported big
+# movements weren't). Down to 3.5 Hz for slower, larger tremors.
+UNSTABLE_AMP = (2, 50)     # px
+UNSTABLE_FREQ = (3.5, 10)  # Hz
 
 
 def make_window(rng, label, cfg, unstable_amp=UNSTABLE_AMP, unstable_freq=UNSTABLE_FREQ):

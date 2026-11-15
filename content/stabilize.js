@@ -20,7 +20,7 @@
   const BLEND_FULL_AT = 0.2;   // effective strength where output is 100% filtered
   const ENGAGE_AT = 0.08;      // controller strength that switches to our cursor
   const DISENGAGE_AT = 0.03;   // ...and back to the real cursor (with < 1 px gap)
-  const DIRECTED_WINDOW_MS = 80;
+  const DIRECTED_WINDOW_MS = 200;
   const TRAIL_MS = 3000;
 
   const controller = new Controller();
@@ -58,16 +58,31 @@
   // --- Raw samples → filter -------------------------------------------------
   const recent = []; // last ~150 ms of raw samples, for directed speed
 
-  /** Net displacement over the last ~80 ms divided by time (px/s). */
+  /**
+   * How fast the cursor is heading somewhere ON PURPOSE (px/s).
+   *
+   * = net displacement over the last 200 ms / time, multiplied by how straight
+   *   the path was (net distance / path length).
+   * A deliberate reach goes one way (straight, big net distance) → high.
+   * A shake goes back and forth, even a big, fast one → the path folds back on
+   * itself, straightness is low, and so is this number. (An earlier version
+   * used only 80 ms and no straightness, so big shakes looked like reaches and
+   * switched smoothing off.)
+   */
   function directedSpeed(t, x, y) {
     recent.push({ t, x, y });
-    while (recent.length && recent[0].t < t - 150) recent.shift();
-    let ref = recent[0];
-    for (const s of recent) {
-      if (s.t >= t - DIRECTED_WINDOW_MS) { ref = s; break; }
+    while (recent.length && recent[0].t < t - DIRECTED_WINDOW_MS - 20) recent.shift();
+    let start = 0;
+    while (start < recent.length - 1 && recent[start].t < t - DIRECTED_WINDOW_MS) start++;
+    const ref = recent[start];
+    let path = 0;
+    for (let i = start + 1; i < recent.length; i++) {
+      path += Math.hypot(recent[i].x - recent[i - 1].x, recent[i].y - recent[i - 1].y);
     }
-    const dt = Math.max(t - ref.t, 20) / 1000;
-    return Math.hypot(x - ref.x, y - ref.y) / dt;
+    const net = Math.hypot(x - ref.x, y - ref.y);
+    const straightness = path > 0 ? net / path : 0;
+    const dt = Math.max(t - ref.t, 40) / 1000;
+    return (net / dt) * straightness;
   }
 
   function step(x, y, t, isRealSample) {
