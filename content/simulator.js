@@ -29,7 +29,9 @@
     const w = 2 * Math.PI * FREQ * (t / 1000) + phase;
     const base = (SM.settings && SM.settings.simAmplitudePx) || DEFAULT_AMP;
     const amp = base * (1 + 0.15 * Math.sin(2 * Math.PI * 0.4 * (t / 1000)));
-    return [amp * Math.sin(w) + noise(), 0.45 * amp * Math.sin(w + 1.3) + noise()];
+    // Bigger shakes are also messier: the random jitter grows with the strength.
+    const n = 1 + base / 25;
+    return [amp * Math.sin(w) + noise() * n, 0.45 * amp * Math.sin(w + 1.3) + noise() * n];
   }
 
   // Applied to every real sample in capture.js.

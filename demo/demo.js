@@ -86,7 +86,7 @@ simBtn.addEventListener("click", async () => {
 // Shake strength slider (also in the popup)
 const strength = document.getElementById("sim-strength");
 const strengthOut = document.getElementById("sim-strength-value");
-const level = (px) => (px <= 6 ? "light" : px <= 16 ? "medium" : px <= 28 ? "strong" : "very strong");
+const level = (px) => (px <= 6 ? "light" : px <= 16 ? "medium" : px <= 28 ? "strong" : px <= 50 ? "very strong" : "extreme");
 function showStrength(px) {
   strength.value = px;
   strengthOut.textContent = `${px} px (${level(px)})`;

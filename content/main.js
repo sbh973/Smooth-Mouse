@@ -74,7 +74,7 @@
       window.postMessage({ source: "smooth-mouse-ext", json: JSON.stringify(payload) }, "*");
 
     if (data.type === "set-sim-strength") {
-      const px = Math.max(2, Math.min(40, Number(data.px) || 12));
+      const px = Math.max(2, Math.min(80, Number(data.px) || 12));
       api.storage.local.set({ simAmplitudePx: px });
       reply({ type: "sim-strength", px });
     } else if (data.type === "set-simulator") {

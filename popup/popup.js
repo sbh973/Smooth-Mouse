@@ -26,7 +26,7 @@ for (const btn of switches) {
 
 /** Words for the simulator's shake strength. */
 function shakeLevel(px) {
-  return px <= 6 ? "light" : px <= 16 ? "medium" : px <= 28 ? "strong" : "very strong";
+  return px <= 6 ? "light" : px <= 16 ? "medium" : px <= 28 ? "strong" : px <= 50 ? "very strong" : "extreme";
 }
 
 // --- Sliders: every <input type="range" data-range-setting="..."> stores a number.
