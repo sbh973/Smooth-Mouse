@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Tells the Smooth Mouse content script this page may request recordings. -->
+  <!-- Tells the Smooth Mouse content script this is the demo page (live metrics, scan panel). -->
   <meta name="smooth-mouse-demo" content="1">
-  <title>Smooth Mouse demo: compose email</title>
+  <title>Smooth Mouse demo</title>
   <link rel="stylesheet" href="demo.css">
 </head>
 <body>
   <header class="topbar">
-    <span class="logo">Mailbox</span>
+    <span class="logo"><span class="logo-dot" aria-hidden="true"></span>Mailbox</span>
     <label class="search">
       <span class="visually-hidden">Search mail</span>
       <input type="search" placeholder="Search mail">
@@ -42,7 +42,7 @@
         <button type="button" class="small" aria-label="Attach file">📎</button>
       </div>
 
-      <label class="field">
+      <label class="field body-field">
         <span class="visually-hidden">Message body</span>
         <textarea id="body" rows="8">Hi Dr. Rivera,
 
@@ -55,85 +55,62 @@ Thanks!</textarea>
         <button type="submit" id="send" class="btn primary">Send</button>
         <button type="button" id="save" class="btn">Save draft</button>
         <span class="spacer"></span>
-        <button type="button" id="delete" class="btn danger">Delete draft</button>
-      </div>
-      <p id="compose-status" class="status" role="status" aria-live="polite"></p>
-    </form>
-
-    <section class="card shop" aria-labelledby="shop-title">
-      <h2 id="shop-title">Trip to Boston</h2>
-      <p class="hint">Flight + hotel, Fri–Sun. Total $249.</p>
-      <div class="actions">
-        <button type="button" class="btn primary" data-demo="Booking completed (demo only).">Complete booking · $249</button>
-        <button type="button" class="btn" data-demo="Wired $500 to Alex (demo only).">Wire $500 to Alex</button>
-        <button type="button" class="btn" data-demo="Account closed (demo only).">Close my account</button>
-        <!-- Icon-only button, no text or label: only Gemini (looking at the icon) can tell it's a delete. -->
-        <button type="button" class="btn icon-btn" data-demo="Trip deleted (demo only).">
+        <!-- Icon-only button with no text or label: the word list can't tell what it
+             does, but Gemini (looking at the icon) can. -->
+        <button type="button" id="discard" class="btn icon-btn danger">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6"/><path d="M14 11v6"/>
           </svg>
         </button>
       </div>
-      <div class="actions">
-        <button type="button" class="btn" data-demo="Added to wishlist.">Add to wishlist</button>
-        <button type="button" class="btn" data-demo="Showing details.">View details</button>
-      </div>
-      <p id="shop-status" class="status" role="status" aria-live="polite"></p>
-    </section>
+      <p id="compose-status" class="status" role="status" aria-live="polite"></p>
+    </form>
 
-    <aside class="card tools" aria-labelledby="tools-title">
-      <h2 id="tools-title">Smooth Mouse tools</h2>
-      <p id="ext-status" class="status">Looking for the Smooth Mouse extension…</p>
+    <aside class="tools" aria-label="Smooth Mouse tools">
+      <section class="card panel">
+        <div class="panel-head">
+          <h2>Smooth Mouse</h2>
+          <span id="ext-status" class="pill">Looking for the extension…</span>
+        </div>
+        <h3>Shaky hand simulator</h3>
+        <p class="hint">Adds a fake tremor to your mouse so you can feel the problem. Try it with Smooth Mouse on, then off in the popup.</p>
+        <button type="button" id="sim-toggle" class="btn primary wide" aria-pressed="false">Turn on shaky hand</button>
+        <div class="sim-strength">
+          <label for="sim-strength">Shake strength <output id="sim-strength-value" for="sim-strength">12 px (medium)</output></label>
+          <input type="range" id="sim-strength" min="2" max="40" step="1" value="12">
+        </div>
+      </section>
 
-      <h3>Shaky hand simulator</h3>
-      <p class="hint">Adds a fake tremor to your mouse so you can feel the problem. Try it with Smooth Mouse on, then switched off in the popup.</p>
-      <button type="button" id="sim-toggle" class="btn primary" aria-pressed="false">Turn on shaky hand</button>
-      <div class="sim-strength">
-        <label for="sim-strength">Shake strength <output id="sim-strength-value" for="sim-strength">12 px (medium)</output></label>
-        <input type="range" id="sim-strength" min="2" max="40" step="1" value="12">
-      </div>
+      <section class="card panel" aria-labelledby="live-title">
+        <h2 id="live-title">Live view</h2>
+        <label class="check">
+          <input type="checkbox" id="sm-show-trails" checked>
+          <span>Show my movement (<span class="legend raw">orange</span>) vs the steady cursor (<span class="legend steady">teal</span>)</span>
+        </label>
+        <dl class="metrics">
+          <div><dt>Movement</dt><dd id="sm-metric-class">–</dd></div>
+          <div><dt>Smoothing</dt><dd id="sm-metric-strength">–</dd></div>
+          <div><dt>Wobble removed</dt><dd id="sm-metric-jitter">–</dd></div>
+          <div><dt>Added lag</dt><dd id="sm-metric-lag">–</dd></div>
+        </dl>
+      </section>
 
-      <h3>Gemini page scan</h3>
-      <p id="sm-gemini-status" class="hint">Waiting to scan this page…</p>
-      <ul id="sm-gemini-scan" class="scan-list" aria-label="Risky buttons on this page"></ul>
-      <p class="hint">Gemini only sees button labels and small icon images, never what you type.</p>
+      <section class="card panel" aria-labelledby="scan-title">
+        <h2 id="scan-title">Risky buttons <span class="gemini-chip">Gemini</span></h2>
+        <p id="sm-gemini-status" class="hint">Waiting to scan this page…</p>
+        <ul id="sm-gemini-scan" class="scan-list" aria-label="Risky buttons on this page"></ul>
+        <p class="hint small-print">Gemini only sees button labels and small icon images, never what you type. This works on every website: open the Smooth Mouse popup to see a page's risky buttons.</p>
+      </section>
 
-      <h3>Live movement classifier</h3>
-      <p class="hint">The badge in the bottom-right corner shows what the on-device model thinks of the last 400 ms of movement, updated every 50 ms. Move calmly, then wiggle the mouse. The labels are engineering labels, not a diagnosis.</p>
-      <p class="hint"><a href="parity.html">Run the Python vs JavaScript parity test →</a></p>
-
-      <h3>Stabilization</h3>
-      <p class="hint">Wiggle the mouse over the page. The <span class="legend raw">orange</span> line is your real movement; the <span class="legend steady">teal</span> line is the stabilized cursor.</p>
-      <label class="check">
-        <input type="checkbox" id="sm-show-trails" checked>
-        Show raw vs stabilized trails
-      </label>
-      <dl class="metrics">
-        <div><dt>Movement</dt><dd id="sm-metric-class">–</dd></div>
-        <div><dt>Smoothing</dt><dd id="sm-metric-strength">–</dd></div>
-        <div><dt>Jitter (raw → steady)</dt><dd id="sm-metric-jitter">–</dd></div>
-        <div><dt>Added lag</dt><dd id="sm-metric-lag">–</dd></div>
-      </dl>
-
-      <h3>Accidental clicks</h3>
-      <p class="hint">With protection on (popup → Accidental clicks), a click only counts if you hold the button for the hold period. A ring around the cursor fills up while you hold; quick taps on Send or Delete draft are ignored with a message.</p>
-
-      <h3>Typing and aiming</h3>
-      <p class="hint">With <em>Ignore repeated keys</em> on, a quick accidental double press is dropped: type "hhello" fast in the message and you get "hello". With <em>Button magnet</em> on, move near the tiny ⚙ / ? or B / I / U buttons: the nearest one lights up and catches your click.</p>
-
-      <h3>Export recording</h3>
-      <p class="hint">Downloads raw pointer events (x, y, time) from this page as JSON for analysis in Python. Keystrokes are never included.</p>
-      <div class="export-row">
-        <label for="export-seconds">Last</label>
-        <select id="export-seconds">
-          <option value="5">5 s</option>
-          <option value="10" selected>10 s</option>
-          <option value="30">30 s</option>
-          <option value="60">60 s</option>
-        </select>
-        <button type="button" id="export" class="btn primary">Export recording</button>
-      </div>
-      <p id="export-status" class="status" role="status" aria-live="polite"></p>
+      <section class="card panel" aria-labelledby="try-title">
+        <h2 id="try-title">Things to try</h2>
+        <ul class="try-list">
+          <li><strong>Risky click:</strong> with the shaky hand on, click <em>Send</em> or the 🗑 button. Smooth Mouse asks first.</li>
+          <li><strong>Quick taps:</strong> with "Ignore quick clicks" on, a fast tap is ignored; hold until the ring turns teal.</li>
+          <li><strong>Repeated keys:</strong> type "hhello" in the message and get "hello".</li>
+          <li><strong>Magnet:</strong> move near the tiny ⚙ or <b>B</b> button; it lights up and catches your click.</li>
+        </ul>
+      </section>
     </aside>
   </main>
 

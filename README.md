@@ -4,14 +4,14 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 7: risky-click confirmation with Gemini, shaky-hand simulator. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 7 + polish: risky buttons on every website, accurate magnet, tested on real sites. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
 ```
 manifest.json        Extension manifest (MV3, works in Firefox and Chrome)
 content/capture.js   Records pointer, click and key events (capture phase, ~3 s buffer)
-content/main.js      On/off switch, popup stats, demo-page "export recording" bridge
+content/main.js      Settings, popup stats, demo-page bridge (simulator switch)
 popup/               Toolbar popup: master switch + live debug readout
 calibrate/           Calibration page (placeholder until Checkpoint 5)
 demo/                Fake email compose page used for testing and the demo
@@ -25,7 +25,7 @@ ml/plots/            Charts for the slides
 content/features.js  JavaScript twin of ml/features.py
 content/model.js     Runs model.json in the browser (standardize → logits → softmax)
 content/live.js      Classifies the last 400 ms every 50 ms; debug badge
-demo/parity.html     Checks JS features/probabilities match Python exactly
+demo/parity.html     Checks JS features/probabilities match Python exactly (open it directly; no longer linked)
 content/filters.js   One Euro filter (speed-adaptive low-pass)
 content/controller.js Model probabilities → smoothing strength (hysteresis, slew, override)
 content/stabilize.js Steady cursor, hides the real one while smoothing, redirects clicks
@@ -63,29 +63,11 @@ python3 -m http.server 5500
 
 Then open <http://localhost:5500/demo/>.
 
-## Test Checkpoint 1
+## Test the basics
 
-1. Load the extension (above) and open the demo page. The right panel should say **"Smooth Mouse is running on this page."**
-2. Click the Smooth Mouse toolbar icon. While the popup is open, move the mouse over the page:
-   - **Pointer events / sec** should jump (often 60–250, depending on your mouse and browser).
-   - Click and type in the email body; **Clicks** and **Keys pressed** go up.
-   - (The popup closes when you click the page; reopen it to see updated totals.)
-3. Toggle the switch **Off**: counts stop increasing and the demo page says it's switched off. Toggle it back **On**.
-4. Wiggle the mouse for a few seconds, pick "Last 10 s", click **Export recording**. A `smooth-mouse-recording-….json` file downloads. Check that it's valid JSON:
-   ```bash
-   python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['sampleCount'], 'samples'); print(d['samples'][:3])" ~/Downloads/smooth-mouse-recording-*.json
-   ```
-
-### Recording format (`raw-pointer-v1`)
-```json
-{
-  "app": "Smooth Mouse", "format": "raw-pointer-v1", "seconds": 10,
-  "page": { "width": 1440, "height": 800, "devicePixelRatio": 2 },
-  "sampleCount": 1234,
-  "samples": [ { "t": 0, "x": 512, "y": 300, "type": "move", "buttons": 0, "pointerType": "mouse" } ]
-}
-```
-`t` is milliseconds since the first sample. `x`/`y` are CSS pixels in the viewport. We use `getCoalescedEvents()` so we get every hardware sample, not just one per animation frame.
+1. Load the extension (above) and open the demo page. The Smooth Mouse panel should say **Running**.
+2. Click the Smooth Mouse toolbar icon. While the popup is open, move the mouse over the page: **Pointer events / sec** jumps (often 60–250). Click and type: **Clicks** and **Keys pressed** go up.
+3. Toggle the master switch **Off**: counts stop and the demo page says *Switched off*. Toggle it back **On**.
 
 ## Python ML pipeline
 
@@ -104,10 +86,6 @@ python ml/train.py
 ```
 Takes about a minute. It generates 9,000 synthetic windows (3,000 per class, fixed seed 42), trains, prints the metrics, and writes `shared/model.json`, `shared/fixtures.json` and `ml/plots/*.png`.
 
-You can also pass exported recordings to see what the model thinks of real movement:
-```bash
-python ml/train.py ~/Downloads/smooth-mouse-recording-*.json
-```
 
 ### How it works
 1. **Synthetic data** (`synth.py`). `stable` = smooth minimum-jerk reaches (from slow moves up to fast 9,000 px/s flicks), overshoot corrections, holds and slow drags. `unstable` = the same plus a 3.5–10 Hz, 2–50 px oscillation. `uncertain` = very small oscillations (0.7–2 px) or slow intentional back-and-forth scribbles (1–2.5 Hz). Sampling copies a real Firefox recording: events every 7–10 ms, whole-ms timestamps with ±1.5 ms jitter, 0.5 px steps, no event when the cursor doesn't move.
@@ -304,5 +282,25 @@ Simulated tests: 12/12 pass (accidental "hh" 40 ms apart is dropped, a real "ll"
 5. Click **View details**: no dialog.
 6. Turn Smooth Mouse **off** in the popup with the simulator still on: now it's hard to hit anything. That's the "before".
 
+## Risky buttons on every website, an accurate magnet, real-site tests
+
+**Every website, not just the demo:** the scan runs on every page. Open the popup on any site to see **Risky buttons on this page**, each with who flagged it (word list or Gemini) and why. A shaky click on any of them shows the "Did you mean to…?" dialog.
+- The word list knows real shop wording ("Place your order", "Buy now", "Check out", "Pay now", "Order now", "Book now", "Donate") and reads labels kept in another element (`aria-labelledby`, like Amazon's **Buy Now**). Risky **links** count too (e.g. a "Checkout" link).
+- **Fewer false alarms:** generic code names like `submit`/`confirm` in class/id no longer count (Amazon's search **Go** button was flagged before), and search buttons are never risky.
+- **Gemini quota saver:** only on-screen buttons the word list can't decide are sent, at most 25 per request and one request every 5 s per page; obviously safe buttons (Search, Menu, Close, Next, Sign in, Add to cart, page numbers…) are never sent; after a failure (server off, busy, out of quota) Smooth Mouse waits 2 minutes before asking again, using the word list meanwhile.
+
+**More accurate magnet** (`assist.js`): only real targets count (links, buttons, checkboxes/radios, selects, ARIA buttons/links/tabs), not big boxes with `tabindex`/`onclick`, labels or text fields; it never acts when the cursor is already on something interactive; it skips huge elements (cards, banners), invisible ones and ones covered by something else; wrapped links are measured line by line and only the nearest line is outlined; and if two targets are about equally close, it doesn't guess. The pull distance is capped at 36 px.
+
+**Tested in a real Firefox** (Selenium driving the actual extension):
+| Test | Result |
+|---|---|
+| Magnet, 80 random spots on a Wikipedia article | lit up only 9 times, always on the truly nearest link (2–17 px away); 0 false outlines |
+| Magnet on the demo page | near ⚙ → ⚙; below Send → Send; between B and I → nothing; empty space / text field → nothing |
+| Demo store (saucedemo.com) cart | "Checkout" and "Remove" flagged; shaky click on Checkout → dialog |
+| Amazon/Target-style buy box (their real markup) | "Buy Now" (aria-labelledby), "Check out", "Place your order" flagged; "Add to Cart" and search "Go" not; shaky click on Buy Now → dialog, the page never got the click |
+| Demo page | Send changes colour on hover and press; shaky Send → dialog → No (clicked 20 px off) → nothing sent; → Yes → sent |
+
+*Limits:* Amazon and Target show a bot-check page to automated browsers, so we tested their real button markup on a local copy; a person using normal Firefox gets the real page.
+
 ## Privacy
-All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.
+All movement data stays in the page's memory. Raw movement only ever goes to the local server on your own computer (for calibration). Gemini only receives button labels, small icon images and summary numbers, never movement, keystrokes or typed text.

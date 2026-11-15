@@ -1,10 +1,14 @@
 :root {
   --teal: #0F766E;
+  --teal-dark: #0B5F58;
+  --teal-darker: #084A44;
+  --teal-tint: #E6F4F1;
   --ink: #102A43;
   --bg: #F3F6F7;
   --muted: #486581;
   --line: #BCCCDC;
   --warn: #B4441A;
+  --warn-tint: #FBEAE3;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 * { box-sizing: border-box; }
@@ -14,65 +18,99 @@ button { cursor: pointer; }
 :focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.topbar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); }
-.logo { font-weight: 700; margin-right: 8px; }
-.search { flex: 1; max-width: 420px; }
-.search input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
+/* --- Top bar --- */
+.topbar { display: flex; align-items: center; gap: 10px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #D9E2EC; position: sticky; top: 0; z-index: 1; }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 18px; margin-right: 8px; }
+.logo-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--teal); }
+.search { flex: 1; max-width: 460px; }
+.search input { width: 100%; padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); }
 
-.layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; padding: 16px; max-width: 1200px; margin: 0 auto; }
-@media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
-.card { background: #fff; border-radius: 14px; padding: 20px; border: 1px solid #D9E2EC; }
-h1 { font-size: 20px; margin: 0 0 12px; }
-h2 { font-size: 17px; margin: 0 0 8px; }
-h3 { font-size: 15px; margin: 16px 0 4px; }
+/* --- Layout --- */
+.layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: 20px; padding: 20px; max-width: 1240px; margin: 0 auto; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+.card { background: #fff; border-radius: 16px; padding: 22px; border: 1px solid #D9E2EC; box-shadow: 0 1px 2px rgba(16, 42, 67, 0.04); }
+.tools { display: grid; gap: 16px; }
+h1 { font-size: 22px; margin: 0 0 14px; }
+h2 { font-size: 17px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+h3 { font-size: 13px; margin: 16px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.panel-head h2 { margin: 0; }
 
+/* --- Compose form --- */
 .field { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #E4E7EB; padding: 6px 0; }
-.field > span { width: 64px; color: var(--muted); }
-.field input { flex: 1; border: 0; padding: 8px 4px; }
-.field textarea { flex: 1; border: 0; padding: 8px 4px; resize: vertical; }
+.field > span { width: 70px; color: var(--muted); }
+.field input { flex: 1; border: 0; padding: 8px 4px; background: transparent; }
+.body-field { border-bottom: 0; }
+.field textarea { flex: 1; border: 1px solid #E4E7EB; border-radius: 10px; padding: 12px; resize: vertical; margin-top: 6px; }
+.toolbar { display: flex; gap: 4px; padding: 10px 0 2px; }
 
-/* The fake website's own controls. "tiny" and "small" are intentionally below
-   44 px: that's realistic, and it's what target assistance will help with. */
-.tiny { width: 24px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 13px; }
-.small { width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-.toolbar { display: flex; gap: 4px; padding: 8px 0; }
-
-.btn { min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-weight: 600; }
+/* --- Buttons: every button visibly reacts to hover and to being pressed --- */
+.btn, .tiny, .small {
+  border: 1px solid var(--line);
+  background: #fff;
+  transition: background-color .12s, border-color .12s, transform .06s, box-shadow .15s;
+}
+.btn { min-height: 46px; padding: 0 20px; border-radius: 12px; font-weight: 650; }
+.btn:hover, .tiny:hover, .small:hover { background: #F0F4F8; border-color: #9FB3C8; }
+.btn:active, .tiny:active, .small:active { background: #D9E2EC; transform: translateY(1px) scale(0.98); }
 .btn.primary { background: var(--teal); border-color: var(--teal); color: #fff; }
+.btn.primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
+.btn.primary:active { background: var(--teal-darker); border-color: var(--teal-darker); }
 .btn.danger { color: var(--warn); border-color: var(--warn); }
-.actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.btn.danger:hover { background: var(--warn-tint); }
+.btn.danger:active { background: #F5CDBD; }
+.btn.wide { width: 100%; }
+.btn[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); color: #fff; }
+.btn[aria-pressed="true"]:hover { background: #973813; }
+/* Flash after every click, including clicks Smooth Mouse redirected to a button
+   (those don't trigger :active, because no real mouse button went down on it). */
+.just-clicked { background: #D9E2EC !important; box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.35); }
+.btn.primary.just-clicked { background: var(--teal-darker) !important; }
+.btn.danger.just-clicked { background: #F5CDBD !important; }
+
+/* Deliberately small, hard-to-hit buttons (what the magnet helps with). */
+.tiny { width: 26px; height: 26px; padding: 0; border-radius: 7px; font-size: 13px; }
+.small { width: 34px; height: 34px; padding: 0; border-radius: 8px; }
+.icon-btn { width: 50px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
 .spacer { flex: 1; }
 
-.status { color: var(--muted); min-height: 1.4em; margin: 8px 0 0; }
-.status.ok { color: var(--teal); }
-.status.warn { color: var(--warn); }
-.hint { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
-.export-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.export-row select { min-height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; background: #fff; }
+/* --- Status text --- */
+.status { color: var(--muted); min-height: 1.4em; margin: 10px 0 0; }
+.status.ok { color: var(--teal); font-weight: 600; }
+.status.warn { color: var(--warn); font-weight: 600; }
+.pill { font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: #E4E7EB; color: #3E4C59; }
+.pill.ok { background: var(--teal-tint); color: var(--teal); }
+.pill.warn { background: var(--warn-tint); color: var(--warn); }
+.hint { color: var(--muted); font-size: 14px; margin: 0 0 10px; line-height: 1.45; }
+.small-print { font-size: 13px; margin-top: 10px; }
 
-.check { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
-.check input { width: 20px; height: 20px; accent-color: var(--teal); }
-.legend { font-weight: 700; }
-.legend.raw { color: var(--warn); }
-.legend.steady { color: var(--teal); }
-.metrics { margin: 4px 0 0; display: grid; gap: 4px; }
-.metrics div { display: flex; justify-content: space-between; gap: 8px; background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
-.metrics dt { color: var(--muted); }
-.metrics dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
-
-.layout { grid-template-areas: "compose tools" "shop tools"; }
-.compose { grid-area: compose; }
-.shop { grid-area: shop; }
-.tools { grid-area: tools; }
-@media (max-width: 800px) { .layout { grid-template-areas: "compose" "shop" "tools"; } }
-.icon-btn { width: 48px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-.scan-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 6px; }
-.scan-list li { background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
-.scan-why { display: block; color: var(--muted); margin-top: 2px; }
-.scan-tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
-.scan-tag.gemini { border-color: var(--teal); color: var(--teal); background: #E6F4F1; }
-
-.sim-strength { margin-top: 10px; }
+/* --- Simulator --- */
+.sim-strength { margin-top: 12px; }
 .sim-strength label { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
 .sim-strength output { font-weight: 700; color: var(--teal); font-variant-numeric: tabular-nums; }
 .sim-strength input { width: 100%; min-height: 36px; accent-color: var(--teal); }
+
+/* --- Live view --- */
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; font-size: 14px; }
+.check input { width: 20px; height: 20px; accent-color: var(--teal); flex: 0 0 auto; }
+.legend { font-weight: 700; }
+.legend.raw { color: var(--warn); }
+.legend.steady { color: var(--teal); }
+.metrics { margin: 6px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.metrics div { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+.metrics dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+.metrics dd { margin: 2px 0 0; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 15px; }
+
+/* --- Risky buttons scan --- */
+.gemini-chip { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: var(--teal-tint); color: var(--teal); border: 1px solid var(--teal); }
+.scan-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.scan-list li { background: var(--bg); border-radius: 10px; padding: 9px 12px; font-size: 14px; }
+.scan-why { display: block; color: var(--muted); margin-top: 2px; }
+.scan-tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.scan-tag.gemini { border-color: var(--teal); color: var(--teal); background: var(--teal-tint); }
+
+/* --- Things to try --- */
+.try-list { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; color: #243B53; }
+.try-list li { margin: 6px 0; }

@@ -62,6 +62,39 @@ const fields = {
   recent: document.getElementById("recent"),
 };
 
+// --- Risky buttons found on this page (word list + Gemini), on ANY website.
+let lastRiskyKey = "";
+function renderRisky(r) {
+  const status = document.getElementById("risky-status");
+  const list = document.getElementById("risky-list");
+  if (!r) { status.textContent = "Not available on this page."; list.innerHTML = ""; return; }
+  const geminiText = {
+    idle: "", asking: " Asking Gemini about the rest…",
+    ok: ` Gemini checked ${r.checkedByGemini} other button${r.checkedByGemini === 1 ? "" : "s"}.`,
+    off: " Gemini is off (start the local server), so only the word list is used.",
+  }[r.state] || "";
+  status.textContent = (r.flagged.length
+    ? `${r.flagged.length} risky button${r.flagged.length === 1 ? "" : "s"} on this page. A shaky click on these asks first.`
+    : "No risky buttons found on this page.") + geminiText;
+  const key = JSON.stringify(r.flagged);
+  if (key === lastRiskyKey) return; // don't rebuild the list twice a second
+  lastRiskyKey = key;
+  list.innerHTML = "";
+  for (const f of r.flagged) {
+    const li = document.createElement("li");
+    const name = document.createElement("strong");
+    name.textContent = f.label;
+    const src = document.createElement("span");
+    src.className = "src" + (f.source === "gemini" ? " gemini" : "");
+    src.textContent = f.source === "gemini" ? "Gemini" : "word list";
+    const why = document.createElement("span");
+    why.className = "why";
+    why.textContent = f.reason;
+    li.append(name, src, why);
+    list.appendChild(li);
+  }
+}
+
 async function refresh() {
   try {
     const [tab] = await api.tabs.query({ active: true, currentWindow: true });
@@ -79,6 +112,7 @@ async function refresh() {
     fields.clicksIgnored.textContent = stats.clicksIgnored ?? 0;
     fields.keysFiltered.textContent = stats.keysFiltered ?? 0;
     fields.magnetAssists.textContent = stats.magnetAssists ?? 0;
+    renderRisky(stats.risky);
     fields.recent.textContent = stats.recentSize;
   } catch {
     // Happens on browser pages (about:, chrome://, the add-ons store) where

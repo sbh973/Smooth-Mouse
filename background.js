@@ -32,6 +32,10 @@ async function fetchWithTimeout(url, body, ms) {
 /** Same button text + label + icon = same answer, on any site. */
 const signature = (b) => [b.text, b.ariaLabel, b.title, b.nearbyText, b.iconPng ? b.iconPng.length + ":" + b.iconPng.slice(-40) : ""].join("|");
 
+// After a failure (server off, Gemini busy or out of quota), don't ask again
+// for 2 minutes: the word list covers us meanwhile.
+let backoffUntil = 0;
+
 async function classify({ buttons, pageTitle }) {
   const { riskyCache = {} } = await api.storage.local.get({ riskyCache: {} });
   const results = {};
@@ -42,8 +46,15 @@ async function classify({ buttons, pageTitle }) {
     else todo.push(b);
   }
   if (todo.length) {
+    if (Date.now() < backoffUntil) throw new Error("backing off after a recent failure");
     // Pre-classification on page load: never in the click path, so we can wait a bit.
-    const reply = await fetchWithTimeout(`${SERVER}/gemini/risky`, { pageTitle, buttons: todo }, 15000);
+    let reply;
+    try {
+      reply = await fetchWithTimeout(`${SERVER}/gemini/risky`, { pageTitle, buttons: todo }, 15000);
+    } catch (err) {
+      backoffUntil = Date.now() + 2 * 60 * 1000;
+      throw err;
+    }
     for (const b of todo) {
       const r = reply.results && reply.results[b.id];
       if (!r) continue;

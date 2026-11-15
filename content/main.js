@@ -3,7 +3,7 @@
 // Jobs right now (Checkpoint 1):
 //   1. Read the popup settings (master switch, toggles) and keep them in sync.
 //   2. Answer the popup's "give me live stats" messages.
-//   3. Let the demo page ask for an "Export recording" of raw pointer data.
+//   3. Let the demo page switch the shaky-hand simulator and read the status.
 
 (() => {
   const api = globalThis.browser ?? globalThis.chrome;
@@ -48,6 +48,7 @@
         clicksIgnored: SM.clickHold ? SM.clickHold.blocked : 0,
         keysFiltered: SM.keyguard ? SM.keyguard.filtered : 0,
         magnetAssists: SM.assist ? SM.assist.assists : 0,
+        risky: SM.risky ? SM.risky.summary() : null,
         modelKind: live.model ? (live.model.trainedOn === "synthetic+personal" ? "personal" : "default") : null,
         unstablePct: live.ready ? Math.round(live.probs.unstable * 100) : null,
       });
@@ -82,37 +83,7 @@
       reply({ type: "simulator", on: !!data.on });
     } else if (data.type === "ping") {
       reply({ type: "pong", enabled: SM.enabled, simulator: !!SM.settings.simulateTremor, simAmplitudePx: SM.settings.simAmplitudePx });
-    } else if (data.type === "export-request") {
-      const seconds = Math.max(1, Math.min(Number(data.seconds) || 10, 60));
-      const samples = SM.capture.getPointerHistory(seconds);
-      const t0 = samples.length ? samples[0].t : 0;
-      reply({
-        type: "export-response",
-        recording: {
-          app: "Smooth Mouse",
-          format: "raw-pointer-v1",
-          exportedAt: new Date().toISOString(),
-          seconds,
-          page: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
-          // Diagnostics: helps explain an empty export.
-          debug: {
-            enabled: SM.enabled,
-            pointerSamplesSinceLoad: SM.capture.getStats().pointerSamples,
-            historySize: SM.capture.getStats().historySize,
-          },
-          // Columns: t = ms since first sample, x/y = CSS pixels (viewport),
-          // type = move | down | up, buttons = pressed-buttons bitmask.
-          sampleCount: samples.length,
-          samples: samples.map((s) => ({
-            t: +(s.t - t0).toFixed(3),
-            x: s.x,
-            y: s.y,
-            type: s.type,
-            buttons: s.buttons,
-            pointerType: s.pointerType,
-          })),
-        },
-      });
+
     }
   });
 })();

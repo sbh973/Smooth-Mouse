@@ -105,7 +105,14 @@
 
   window.addEventListener("mousedown", (e) => {
     if (!sim.on || !e.isTrusted || e.button !== 0) return;
-    press = { x: shakyX ?? e.clientX, y: shakyY ?? e.clientY };
+    // Use the press's own position (not only the last mousemove), so the
+    // shaky click is always measured from where the hand really is.
+    realX = e.clientX;
+    realY = e.clientY;
+    const [dx, dy] = tremor(performance.now());
+    shakyX = realX + dx;
+    shakyY = realY + dy;
+    press = { x: shakyX, y: shakyY };
   }, true);
 
   function clickAt(x, y) {

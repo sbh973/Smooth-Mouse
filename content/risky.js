@@ -25,22 +25,33 @@
   const OURS = ".sm-dialog, .sm-badge, .sm-toast, .sm-cursor, .sm-hold-ring, .sm-magnet";
 
   // --- 1. Word list ------------------------------------------------------------
-  const RISKY_WORDS = /\b(send|delete|remove|trash|buy|purchase|pay|place order|checkout|check out|submit|confirm|transfer|unsubscribe|post|publish)\b/i;
-  const RISKY_TOKENS = new Set(["send", "delete", "remove", "trash", "buy", "purchase", "pay", "checkout", "submit", "confirm", "transfer", "unsubscribe", "publish"]);
+  // Also the wording real shops use ("Place your order", "Buy now", "Check out", "Pay now"…).
+  const RISKY_WORDS = /\b(send|delete|remove|trash|buy|purchase|pay|place (?:your )?order|order now|book now|checkout|check out|submit|confirm|transfer|unsubscribe|post|publish|donate)\b/i;
+  // In class/id names only specific words count: "submit"/"confirm" are used for
+  // every form button (e.g. Amazon's search "Go"), so they only count in visible labels.
+  const RISKY_TOKENS = new Set(["send", "delete", "remove", "trash", "buy", "purchase", "pay", "checkout", "transfer", "unsubscribe", "publish", "donate"]);
+  // Never risky: search boxes. Never worth asking Gemini about: obviously safe buttons.
+  const isSearch = (el) => !!(el.closest('[role="search"], search') ||
+    /search/i.test(`${el.id} ${typeof el.className === "string" ? el.className : ""} ${el.getAttribute("name") || ""} ${el.getAttribute("aria-label") || ""}`));
+  const OBVIOUSLY_SAFE = /^(search|go|menu|close|×|x|next|previous|prev|back|more|less|show more|see more|see all|view all|sign in|log in|login|sign up|register|help|share|like|follow|filter|sort|cancel|ok|got it|accept|dismiss|open|expand|collapse|play|pause|mute|unmute|zoom|add to cart|add to bag|add to list|add to wishlist|wishlist|save|view|details|learn more|read more|skip|home|account|cart)$/i;
   const ACTION_OF = [
     [/send|post|publish/i, "send"],
     [/delete|remove|trash|unsubscribe/i, "delete"],
-    [/buy|purchase|pay|order|checkout|check out|transfer/i, "purchase"],
+    [/buy|purchase|pay|order|checkout|check out|transfer|donate/i, "purchase"],
     [/submit|confirm/i, "submit"],
   ];
 
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim().slice(0, 80);
   function labelOf(el) {
-    return clean(el.getAttribute("aria-label") || el.innerText || el.value || el.getAttribute("title") ||
+    // aria-labelledby: the label lives in another element (e.g. Amazon's "Buy Now" button).
+    const ids = el.getAttribute("aria-labelledby");
+    const labelled = ids ? ids.split(/\s+/).map((id) => document.getElementById(id)).filter(Boolean).map((n) => n.textContent).join(" ") : "";
+    return clean(el.getAttribute("aria-label") || labelled || el.innerText || el.value || el.getAttribute("title") ||
       (el.querySelector && el.querySelector("img[alt]") && el.querySelector("img[alt]").alt) || "");
   }
 
   function wordListVerdict(el) {
+    if (isSearch(el)) return null;
     const words = [labelOf(el), el.getAttribute("title"), el.getAttribute("aria-label"), el.value].filter(Boolean).join(" ");
     let match = words.match(RISKY_WORDS);
     if (!match) {
@@ -109,8 +120,12 @@
 
   const visible = (el) => {
     const r = el.getBoundingClientRect();
-    return r.width > 0 && r.height > 0 && !el.disabled && !el.closest(OURS);
+    return r.width > 0 && r.height > 0 && r.bottom > -300 && r.top < innerHeight + 300 &&
+      !el.disabled && !el.closest(OURS);
   };
+  const GEMINI_GAP_MS = 5000; // at most one Gemini request per page every 5 s
+  const GEMINI_BATCH = 25;
+  let lastGeminiAt = -Infinity;
 
   let scanTimer = null;
   function scheduleScan(delay = 1200) {
@@ -123,7 +138,9 @@
 
   async function scan() {
     if (!SM.enabled || !SM.settings || !SM.settings.riskyConfirm) return;
-    const fresh = [...document.querySelectorAll(BUTTONS)].filter((el) => visible(el) && !asked.has(el)).slice(0, 40);
+    // The word list is instant, so it checks EVERY button on screen; only the
+    // Gemini batch is limited (big shops have hundreds of buttons).
+    const fresh = [...document.querySelectorAll(BUTTONS)].filter((el) => visible(el) && !asked.has(el));
     // Word-list matches are decided locally; only the undecided ones go to Gemini.
     const undecided = [];
     for (const el of fresh) {
@@ -133,7 +150,24 @@
       else undecided.push(el);
     }
     renderScan();
-    if (!undecided.length || !SM.settings.useGemini) return;
+    // Nothing to classify: no label and no icon.
+    const askable = undecided.filter((el) => {
+      if (isSearch(el)) return false;
+      const label = labelOf(el);
+      if (!label) return !!el.querySelector("svg");          // icon-only: Gemini looks at the icon
+      return label.length > 1 && !OBVIOUSLY_SAFE.test(label) && !/^\d+$/.test(label); // skip "Next", "3", …
+    });
+    if (!askable.length || !SM.settings.useGemini) return;
+    const wait = lastGeminiAt + GEMINI_GAP_MS - performance.now();
+    if (wait > 0) {
+      askable.forEach((el) => asked.delete(el)); // ask about these next time
+      scheduleScan(wait);
+      return;
+    }
+    if (askable.length > GEMINI_BATCH) askable.slice(GEMINI_BATCH).forEach((el) => asked.delete(el));
+    undecided.length = 0;
+    undecided.push(...askable.slice(0, GEMINI_BATCH));
+    lastGeminiAt = performance.now();
 
     const ids = new Map();
     const buttons = await Promise.all(undecided.map(async (el, i) => {
@@ -170,7 +204,8 @@
     renderScan();
   }
 
-  // Scan on load, then whenever the page adds buttons.
+  // Scan on load, when the user scrolls to new buttons, and whenever the page adds some.
+  window.addEventListener("scroll", () => scheduleScan(800), { passive: true, capture: true });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => scheduleScan(800));
   else scheduleScan(800);
   // Only real page changes count: ignore Smooth Mouse's own badge, cursor, toasts…
@@ -271,7 +306,8 @@
   window.addEventListener("click", (e) => {
     if (!e.isTrusted || e.detail === 0 || e.button !== 0 || !SM.enabled || !SM.settings.riskyConfirm) return;
     if (e.target.closest && e.target.closest(OURS)) return;
-    const target = e.target.closest ? e.target.closest(BUTTONS) : null;
+    // Buttons, and also links that read like an action ("Checkout", "Buy now").
+    const target = e.target.closest ? e.target.closest(BUTTONS + ", a[href]") : null;
     if (!target) return;
     const v = verdictFor(target);
     if (!v || !v.risky || !shakyNow()) return;
@@ -311,5 +347,11 @@
     }
   }
 
-  SM.risky = { guardedClick, verdictFor, confirmations: 0 };
+  /** For the popup: what the scan found on this page. */
+  function summary() {
+    const flagged = scanLog.filter((r) => r.risky).slice(0, 12).map(({ label, source, reason }) => ({ label, source, reason }));
+    return { state: geminiState, checkedByGemini: scanLog.filter((r) => r.source === "gemini").length, flagged };
+  }
+
+  SM.risky = { guardedClick, verdictFor, summary, confirmations: 0 };
 })();
