@@ -74,6 +74,31 @@ def calibrate(req: CalibrateRequest):
     return {"model": model, "profile": req.profile, "report": report}
 
 
+class ButtonInfo(BaseModel):
+    id: str
+    text: str = ""
+    ariaLabel: str = ""
+    title: str = ""
+    nearbyText: str = ""
+    iconPng: str = Field(default="", max_length=60000)  # small base64 PNG of an icon-only button
+
+
+class RiskyRequest(BaseModel):
+    pageTitle: str = ""
+    buttons: list[ButtonInfo] = Field(default_factory=list, max_length=60)
+
+
+@app.post("/gemini/risky")
+def gemini_risky(req: RiskyRequest):
+    """Classify a batch of buttons (labels + small icon images only). Cached per button."""
+    try:
+        results = gemini.classify_buttons([b.model_dump() for b in req.buttons], req.pageTitle)
+        return {"results": results}
+    except gemini.GeminiUnavailable as err:
+        print("Gemini risky failed:", err, flush=True)
+        raise HTTPException(status_code=503, detail="Gemini unavailable")
+
+
 @app.post("/gemini/explain")
 def gemini_explain(stats: dict):
     try:

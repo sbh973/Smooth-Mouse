@@ -101,12 +101,16 @@
       counters.pointerSamples++;
       let age = e.timeStamp - s.timeStamp; // how much earlier this sample happened
       if (!(age >= 0 && age < 200)) age = 0;
+      // The shaky-hand simulator (simulator.js) can add a fake tremor here,
+      // BEFORE the rest of Smooth Mouse sees the movement.
+      const tf = SM.capture && SM.capture.transform;
+      const [x, y] = tf ? tf(s.clientX, s.clientY, now - age) : [s.clientX, s.clientY];
       record(
         {
           t: now - age,
           type,
-          x: s.clientX,
-          y: s.clientY,
+          x,
+          y,
           buttons: s.buttons,
           pointerType: s.pointerType || e.pointerType,
         },
@@ -168,6 +172,14 @@
       const ms = Math.min(seconds * 1000, HISTORY_MS);
       return history.since(performance.now() - ms);
     },
+    /** Add a movement sample that didn't come from the mouse (used by the simulator). */
+    inject(x, y) {
+      if (!SM.enabled) return;
+      counters.pointerSamples++;
+      record({ t: performance.now(), type: "move", x, y, buttons: 0, pointerType: "simulated" }, true);
+    },
+    /** Optional (x, y, t) → [x, y] applied to every real sample (set by the simulator). */
+    transform: null,
     /** Subscribe to every new sample. Returns an unsubscribe function. */
     onSample(fn) {
       listeners.add(fn);

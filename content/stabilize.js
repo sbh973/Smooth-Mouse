@@ -182,7 +182,8 @@
 
   function render() {
     const show = state.engaged && !outside && state.x !== null;
-    document.documentElement.classList.toggle("sm-hide-cursor", show);
+    // (While the shaky-hand simulator runs, the real cursor stays hidden: it draws its own.)
+    document.documentElement.classList.toggle("sm-hide-cursor", show || !!(SM.simulator && SM.simulator.on));
     if (!show) {
       if (cursorEl) cursorEl.hidden = true;
       return;
@@ -220,16 +221,16 @@
     if (!steadyTarget) return;
     if (activationTarget(steadyTarget) === activationTarget(e.target)) return; // same thing either way
 
-    // Cancel the real click and click what the steady cursor is on instead.
+    // Cancel the real click and click what the steady cursor is on instead
+    // (through risky.js, which asks first if that's a risky button).
     e.preventDefault();
     e.stopImmediatePropagation();
-    if (steadyTarget.matches && steadyTarget.matches(FOCUSABLE)) steadyTarget.focus();
-    steadyTarget.dispatchEvent(
-      new MouseEvent("click", {
-        bubbles: true, cancelable: true, composed: true,
-        clientX: p.x, clientY: p.y, button: 0, detail: 1,
-      })
-    );
+    if (SM.risky) {
+      SM.risky.guardedClick(steadyTarget, p.x, p.y);
+    } else {
+      if (steadyTarget.matches && steadyTarget.matches(FOCUSABLE)) steadyTarget.focus();
+      steadyTarget.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, clientX: p.x, clientY: p.y, button: 0, detail: 1 }));
+    }
     state.clicksRedirected++;
   }, true);
 })();

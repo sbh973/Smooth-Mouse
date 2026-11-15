@@ -57,7 +57,19 @@
 
   const presses = {};   // button number → { t, upT }
   let lastBlockedAt = 0;
-  SM.clickHold = { blocked: 0, holdMs };
+  SM.clickHold = {
+    blocked: 0,
+    holdMs,
+    /** For the simulator's fake accidental taps: ignore it if quick-click protection is on. */
+    ignoreSimulatedTap(name = "left") {
+      if (!protectedButton(name)) return false;
+      SM.clickHold.blocked++;
+      lastBlockedAt = performance.now();
+      toast(`Smooth Mouse ignored a quick accidental ${name} click.`);
+      if (document.querySelector('meta[name="smooth-mouse-demo"]')) document.dispatchEvent(new CustomEvent("smoothmouse:ignored"));
+      return true;
+    },
+  };
 
   // --- Track every press (mousedown fires for every button) -----------------
   window.addEventListener("mousedown", (e) => {

@@ -59,3 +59,15 @@ h3 { font-size: 15px; margin: 16px 0 4px; }
 .metrics div { display: flex; justify-content: space-between; gap: 8px; background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
 .metrics dt { color: var(--muted); }
 .metrics dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+
+.layout { grid-template-areas: "compose tools" "shop tools"; }
+.compose { grid-area: compose; }
+.shop { grid-area: shop; }
+.tools { grid-area: tools; }
+@media (max-width: 800px) { .layout { grid-template-areas: "compose" "shop" "tools"; } }
+.icon-btn { width: 48px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.scan-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 6px; }
+.scan-list li { background: var(--bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.scan-why { display: block; color: var(--muted); margin-top: 2px; }
+.scan-tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.scan-tag.gemini { border-color: var(--teal); color: var(--teal); background: #E6F4F1; }

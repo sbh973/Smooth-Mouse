@@ -114,8 +114,12 @@
     e.stopImmediatePropagation();
     const r = cand.el.getBoundingClientRect();
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
-    if (cand.el.matches("input, textarea, select, button, a[href], [tabindex]")) cand.el.focus();
-    cand.el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, button: 0, detail: 1 }));
+    if (SM.risky) {
+      SM.risky.guardedClick(cand.el, x, y); // asks first if it's a risky button
+    } else {
+      if (cand.el.matches("input, textarea, select, button, a[href], [tabindex]")) cand.el.focus();
+      cand.el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, button: 0, detail: 1 }));
+    }
     SM.assist.assists++;
   }, true);
 })();

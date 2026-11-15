@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 6: click and key protection, button magnet; calibration picks and explains every protection. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 7: risky-click confirmation with Gemini, shaky-hand simulator. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -276,6 +276,33 @@ Simulated tests: 12/12 pass (accidental "hh" 40 ms apart is dropped, a real "ll"
 3. **Magnet:** move near the tiny ⚙ / ? or **B** / *I* / U buttons without touching them; one lights up. Click: the status line names that button.
 4. **Sliding clicks:** press on **Save draft**, slide far away while holding, release: ignored, with a message.
 5. The popup counters go up as each protection helps.
+
+## Checkpoint 7: risky clicks (with Gemini) and the shaky-hand simulator
+
+**"Did you mean to click 'Send'?"** If a click lands on a risky button while the hand is shaking (the model said unstable/uncertain in the last second, the steady cursor is on, or the simulator is running), Smooth Mouse pauses and asks, with big **No, go back** (the default) and **Yes, send it** buttons. Esc = No, Tab stays inside the dialog, and calm clicks go straight through.
+
+**Which buttons are risky?** Our model understands the user's *hands*; Gemini understands the *page*.
+1. **Word list first** (instant, offline): send, delete, remove, trash, buy, purchase, pay, place order, checkout, submit, confirm, transfer, unsubscribe, post, publish (in the label, aria-label, title, value, class or id).
+2. **Gemini for everything the list can't decide.** When a page loads, `risky.js` sends the undecided buttons, as **labels only**, in **one batch** to `background.js` → local server → `POST /gemini/risky`. **Icon-only buttons** (no text) are drawn into a small 48×48 PNG so Gemini can *see* the icon (e.g. a trash can). Gemini returns `{risky, action, reason}` per button using structured JSON output.
+3. **Never waits at click time:** the dialog only uses answers we already have. With the server off or Gemini down, the word list still works.
+4. **Cached twice:** in the extension (`storage.local`) and on the server (`ml/cache/gemini_cache.json`), so a button is asked about once, ever. Busy (503/429) answers are retried once, then the backup model is tried.
+5. **The dialog shows "Checked by Gemini"** and Gemini's one-line reason when Gemini made the call.
+
+**Gemini page scan** (demo page panel) lists what was flagged and by whom. On the demo page, Gemini catches **Complete booking · $249**, **Wire $500 to Alex**, **Close my account** and an **icon-only 🗑 button**, none of which the word list matches, and correctly leaves Bold, Add to wishlist and View details alone.
+
+**Shaky-hand simulator** (popup → Demo, or the button on the demo page): adds a fake tremor (~5 times a second, ±12 px, plus noise) to the mouse *before* Smooth Mouse sees it, keeps shaking while the mouse is still, hides the real cursor and shows a shaky orange one, makes clicks land where the shaky cursor is, and sometimes adds an accidental extra tap. It works with Smooth Mouse switched off too, to show the "before".
+
+**Privacy:** Gemini receives button labels, nearby button labels, the page title and small icon images, never typed text, page content or movement.
+
+**Tested in a real Firefox** (Selenium driving the actual extension): the scan flags exactly those 4 buttons; a calm click on Send sends; a shaky click on Send opens the dialog and Esc cancels it (nothing sent); a shaky click on the trash icon shows Gemini's reason with "Checked by Gemini", and clicking *Yes, delete it* with the shaky mouse deletes; a shaky click on *View details* goes straight through.
+
+### Test it
+1. Make sure the server is running (`python ml/server.py`), reload the extension, then refresh the demo page. After a few seconds the **Gemini page scan** panel lists the risky buttons.
+2. Press **Turn on shaky hand** on the demo page. Your cursor turns into a shaky orange arrow; after a moment Smooth Mouse's steady cursor takes over.
+3. Click **Send**: the dialog asks first. Press **No, go back** (or Esc): nothing is sent.
+4. Click the **🗑** button in the trip card: the dialog says *Did you mean to delete this?* with Gemini's reason and the **Checked by Gemini** tag.
+5. Click **View details**: no dialog.
+6. Turn Smooth Mouse **off** in the popup with the simulator still on: now it's hard to hit anything. That's the "before".
 
 ## Privacy
 All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.

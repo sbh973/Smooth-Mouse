@@ -29,6 +29,18 @@ document.querySelectorAll(".toolbar button, .topbar .tiny").forEach((btn) =>
   btn.addEventListener("click", () => say(`Clicked "${btn.getAttribute("aria-label")}".`))
 );
 
+// Trip card buttons: each just reports what it would have done.
+const shopStatus = document.getElementById("shop-status");
+let shopTimer = null;
+document.querySelectorAll("[data-demo]").forEach((btn) =>
+  btn.addEventListener("click", () => {
+    shopStatus.textContent = `${btn.dataset.demo} (${new Date().toLocaleTimeString()})`;
+    shopStatus.className = "status ok";
+    clearTimeout(shopTimer);
+    shopTimer = setTimeout(() => (shopStatus.textContent = ""), 4000);
+  })
+);
+
 // --- Bridge to the extension -----------------------------------------------
 const extStatus = document.getElementById("ext-status");
 const exportStatus = document.getElementById("export-status");
@@ -58,9 +70,26 @@ function ask(type, replyType, extra = {}, timeoutMs = 1500) {
   });
 }
 
+// Shaky hand simulator button
+const simBtn = document.getElementById("sim-toggle");
+function showSim(on) {
+  simBtn.setAttribute("aria-pressed", String(on));
+  simBtn.textContent = on ? "Turn off shaky hand" : "Turn on shaky hand";
+}
+simBtn.addEventListener("click", async () => {
+  const on = simBtn.getAttribute("aria-pressed") !== "true";
+  try {
+    await ask("set-simulator", "simulator", { on });
+    showSim(on);
+  } catch {
+    extStatus.textContent = "Smooth Mouse not detected. Load the extension, then reload this page.";
+  }
+});
+
 async function checkExtension() {
   try {
     const pong = await ask("ping", "pong");
+    showSim(!!pong.simulator);
     extStatus.textContent = pong.enabled
       ? "Smooth Mouse is running on this page."
       : "Smooth Mouse is installed but switched off in the popup.";

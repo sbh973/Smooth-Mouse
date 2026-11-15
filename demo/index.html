@@ -60,9 +60,39 @@ Thanks!</textarea>
       <p id="compose-status" class="status" role="status" aria-live="polite"></p>
     </form>
 
+    <section class="card shop" aria-labelledby="shop-title">
+      <h2 id="shop-title">Trip to Boston</h2>
+      <p class="hint">Flight + hotel, Fri–Sun. Total $249.</p>
+      <div class="actions">
+        <button type="button" class="btn primary" data-demo="Booking completed (demo only).">Complete booking · $249</button>
+        <button type="button" class="btn" data-demo="Wired $500 to Alex (demo only).">Wire $500 to Alex</button>
+        <button type="button" class="btn" data-demo="Account closed (demo only).">Close my account</button>
+        <!-- Icon-only button, no text or label: only Gemini (looking at the icon) can tell it's a delete. -->
+        <button type="button" class="btn icon-btn" data-demo="Trip deleted (demo only).">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/><path d="M10 11v6"/><path d="M14 11v6"/>
+          </svg>
+        </button>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" data-demo="Added to wishlist.">Add to wishlist</button>
+        <button type="button" class="btn" data-demo="Showing details.">View details</button>
+      </div>
+      <p id="shop-status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
     <aside class="card tools" aria-labelledby="tools-title">
       <h2 id="tools-title">Smooth Mouse tools</h2>
       <p id="ext-status" class="status">Looking for the Smooth Mouse extension…</p>
+
+      <h3>Shaky hand simulator</h3>
+      <p class="hint">Adds a fake tremor to your mouse so you can feel the problem. Try it with Smooth Mouse on, then switched off in the popup.</p>
+      <button type="button" id="sim-toggle" class="btn primary" aria-pressed="false">Turn on shaky hand</button>
+
+      <h3>Gemini page scan</h3>
+      <p id="sm-gemini-status" class="hint">Waiting to scan this page…</p>
+      <ul id="sm-gemini-scan" class="scan-list" aria-label="Risky buttons on this page"></ul>
+      <p class="hint">Gemini only sees button labels and small icon images, never what you type.</p>
 
       <h3>Live movement classifier</h3>
       <p class="hint">The badge in the bottom-right corner shows what the on-device model thinks of the last 400 ms of movement, updated every 50 ms. Move calmly, then wiggle the mouse. The labels are engineering labels, not a diagnosis.</p>
