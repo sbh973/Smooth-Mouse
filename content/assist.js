@@ -27,7 +27,10 @@
     if (area === "local" && changes.profile) readProfile(changes.profile.newValue);
   });
 
-  const active = () => SM.enabled && SM.settings && SM.settings.magnet;
+  const dialogOpen = () => !!document.querySelector(".sm-dialog");
+  // The magnet always helps answer our own dialog, even when switched off for pages.
+  const active = () => SM.enabled && SM.settings && (SM.settings.magnet || dialogOpen());
+  const DIALOG_RADIUS = 80; // px: anywhere near "Yes" / "No, go back" counts
   SM.assist = { assists: 0, target: null };
 
   // --- Where is the cursor? ---------------------------------------------------
@@ -47,10 +50,17 @@
 
   // --- Find the nearest clickable within the radius (4x a second is enough) ---
   let candidates = [], candidatesAt = 0;
+  // While the "Did you mean to…?" dialog is open, ONLY its own buttons count:
+  // the page behind the dark overlay can't be clicked anyway, and pulling the
+  // click toward "Yes" / "No, go back" helps a shaky hand answer the dialog.
+  let dialogWasOpen = false;
   function refreshCandidates() {
     candidates = [];
-    for (const el of document.querySelectorAll(CLICKABLE)) {
-      if (el.disabled || isOurs(el)) continue;
+    const dialog = document.querySelector(".sm-dialog");
+    dialogWasOpen = !!dialog;
+    const pool = dialog ? dialog.querySelectorAll("button") : document.querySelectorAll(CLICKABLE);
+    for (const el of pool) {
+      if (el.disabled || (!dialog && isOurs(el))) continue;
       const r = el.getBoundingClientRect();
       if (r.width < 1 || r.height < 1 || r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) continue;
       candidates.push({ el, r });
@@ -64,8 +74,9 @@
     const c = cursor();
     if (!active() || !c) return null;
     if (clickableAt(c.x, c.y)) return null; // already on something clickable: no help needed
-    if (performance.now() - candidatesAt > 250) refreshCandidates();
-    let best = null, bestD = radius;
+    const open = dialogOpen();
+    if (open !== dialogWasOpen || performance.now() - candidatesAt > 250) refreshCandidates();
+    let best = null, bestD = dialogWasOpen ? Math.max(radius, DIALOG_RADIUS) : radius;
     for (const cand of candidates) {
       const d = distance(c.x, c.y, cand.r);
       if (d <= bestD) { best = cand; bestD = d; }

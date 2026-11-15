@@ -129,7 +129,9 @@ html.sm-hide-cursor * {
 .sm-dialog {
   position: fixed;
   inset: 0;
-  z-index: 2147483647;
+  /* Just BELOW our cursors, hold ring, magnet outline and toasts, so the
+     cursor is always drawn on top of the dialog. */
+  z-index: 2147483640;
   display: flex;
   align-items: center;
   justify-content: center;
