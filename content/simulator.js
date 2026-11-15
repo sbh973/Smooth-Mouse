@@ -123,7 +123,7 @@
   }
 
   // Registered after clickhold.js (ignored taps stay ignored) and before the
-  // magnet / steady cursor (which take over when Smooth Mouse is helping).
+  // steady cursor (which takes over when Smooth Mouse is helping).
   window.addEventListener("click", (e) => {
     if (!sim.on || !e.isTrusted || e.button !== 0 || e.detail === 0 || !press) return;
     const p = press;

@@ -68,7 +68,7 @@ h3 { font-size: 13px; margin: 16px 0 4px; color: var(--muted); text-transform: u
 .btn.primary.just-clicked { background: var(--teal-darker) !important; }
 .btn.danger.just-clicked { background: #F5CDBD !important; }
 
-/* Deliberately small, hard-to-hit buttons (what the magnet helps with). */
+/* Deliberately small, hard-to-hit buttons (the steady cursor helps with these). */
 .tiny { width: 26px; height: 26px; padding: 0; border-radius: 7px; font-size: 13px; }
 .small { width: 34px; height: 34px; padding: 0; border-radius: 8px; }
 .icon-btn { width: 50px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }

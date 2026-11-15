@@ -404,17 +404,14 @@ function chooseClickHold(m) {
   return { left: left.ms, right: right.ms, middle: left.ms, recommendedOn, reason: why, caught: left.caught, totalOutside: left.total };
 }
 
-/** Thresholds used by click/key protection and target assistance (Checkpoint 6). */
+/** Thresholds used by click and key protection (Checkpoint 6). */
 function buildProfile(m) {
-  const A = m.amplitudePx || 0;
   return {
     // Same key again faster than this = accidental repeat (filtered).
     keyRepeatWindowMs: Math.round(clamp(Math.max(m.medianKeyGapMs ? 0.45 * m.medianKeyGapMs : 120,
       m.accidentalRepeatMaxGapMs ? 1.3 * m.accidentalRepeatMaxGapMs : 0), 60, 300)),
     // Second click faster than this = accidental double-click (merged).
     doubleClickWindowMs: Math.round(clamp(m.accidentalDoubleMaxGapMs ? 1.3 * m.accidentalDoubleMaxGapMs : 350, 250, 600)),
-    // How close the steady cursor must be for a button to "pull" the click.
-    magnetRadiusPx: Math.round(clamp(12 + 1.5 * A + 2 * (m.misses || 0), 12, 48)),
     // Moving more than this while the button is held down = shaky click.
     shakyPressDriftPx: Math.round(clamp(Math.max(8, 2 * (m.pressDriftP90Px || 0)), 8, 40)),
   };
@@ -477,15 +474,6 @@ function decideProtections(m, profile, personal) {
         : "You skipped the typing step, so this uses a standard setting.",
     },
     {
-      title: "Button magnet",
-      setting: "magnet",
-      on: shaky || (m.misses || 0) >= 2,
-      what: `When your cursor is within ${profile.magnetRadiusPx} pixels of a button, the button lights up and catches your click.`,
-      why: (m.misses || 0) >= 2 || shaky
-        ? `You missed ${m.misses || 0} click${m.misses === 1 ? "" : "s"} during the circle step, so buttons reach out further to help.`
-        : "You hit the circles accurately, so this starts off.",
-    },
-    {
       title: "Ignore sliding clicks",
       setting: "shakyClicks",
       on: shaky,
@@ -499,8 +487,7 @@ function decideProtections(m, profile, personal) {
     ignoreLeft: ch.recommendedOn, ignoreRight: ch.recommendedOn, ignoreMiddle: ch.recommendedOn,
     holdOverrideMs: null,
     filterRepeatedKeys: cards[2].on,
-    magnet: cards[3].on,
-    shakyClicks: cards[4].on,
+    shakyClicks: cards[3].on,
   };
   return { cards, settings };
 }

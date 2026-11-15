@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 7 + polish: risky buttons on every website, accurate magnet, tested on real sites. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 7 + polish: risky buttons on every website, tested on real sites. The button magnet was removed. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -182,7 +182,7 @@ Open the popup → **Calibrate (1 minute)**:
 3. **Type a sentence** → typing rhythm and accidental double key presses (the sentence has no doubled letters, so any double is accidental).
 
 Then:
-- **A profile** is computed in the browser (always works): key-repeat window, double-click window, magnet radius and shaky-press threshold. These are used by Checkpoint 6.
+- **A profile** is computed in the browser (always works): key-repeat window, double-click window and shaky-press threshold. These are used by Checkpoint 6.
 - **A personal model** is trained by the server in about 1–2 s (`ml/personalize.py`):
   - Your 10 s hold is the yardstick. If your cursor stays steady (< 1.5 px), everything you did during calibration was intentional, so all of it becomes `stable` training data. This fixes "my normal fast movement shows as unstable."
   - If you have a measurable wobble, your hold windows become real `unstable` examples. Reach windows much calmer than your hold become `stable`.
@@ -231,10 +231,11 @@ The results screen shows a short summary (from Gemini when available), then **on
 | Steady cursor | always on (adapts live) | your personal ML model |
 | Ignore quick clicks | shaking, or accidental taps quicker than your real clicks | how long you held real vs accidental clicks |
 | Ignore repeated keys | shaking, or a double key press while typing | 45% of your typical time between keys (0.06–0.3 s) |
-| Button magnet | shaking, or 2+ clicks outside the circles | 12 px + 1.5 × your wobble + 2 × misses (12–48 px) |
 | Ignore sliding clicks | shaking | 2 × how far your cursor usually slides during a click (8–40 px) |
 
-## Checkpoint 6: key protection, sliding clicks, button magnet
+## Checkpoint 6: key protection, sliding clicks
+
+> **Note:** the button magnet described below was later removed to keep Smooth Mouse simple.
 
 - **Ignore repeated keys** (`keyguard.js`): a second press of the same key is dropped (so "hhello" becomes "hello") when either:
   1. it came **extremely fast**, within your calibrated window (a bounce; nobody types a real double letter that fast), or

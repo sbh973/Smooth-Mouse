@@ -12,7 +12,6 @@ window.SmoothMouseDefaults = {
   holdOverrideMs: null,       // null = use the hold period chosen by calibration
   shakyClicks: false,         // ignore clicks where the cursor slid too far while pressed
   filterRepeatedKeys: false,  // ignore accidental double key presses ("hhello" → "hello")
-  magnet: false,              // nearby buttons light up and catch the click
   riskyConfirm: true,         // "Did you mean to click 'Send'?" for risky buttons while shaking
   useGemini: true,            // ask Gemini (via the local server) which buttons are risky
   simulateTremor: false,      // shaky-hand simulator, for demos

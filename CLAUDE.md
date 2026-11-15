@@ -211,4 +211,5 @@ The priority instead: features users actually feel, set automatically by calibra
 - **Done:** hold period + ignoring accidental clicks per button (left/right/middle), chosen by calibration (`content/clickhold.js`, `calibrate.js → chooseClickHold`), with popup switches and an override slider.
 - **Done (CP6):** repeated-key filter, sliding-click blocking, button magnet; calibration decides every protection (on/off + setting) and the results screen explains each in plain words (`decideProtections`). Calibration uses 5 circles + 3 right-clicks; every click outside a circle counts as accidental; the hold time never blocks real clicks.
 - **Done (CP7):** risky-click dialog (word list + Gemini batch pre-classification incl. icon images, cached; background.js is the only link to the server), Gemini page scan panel, shaky-hand simulator. Tested in real Firefox with Selenium.
+- **Removed:** the button magnet (`assist.js`), at the user's request.
 - **Still to do:** before/after test (CP8), polish + README/DEVPOST/DEMO (CP9).

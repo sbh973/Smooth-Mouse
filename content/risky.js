@@ -22,7 +22,7 @@
   const SM = window.SmoothMouse;
 
   const BUTTONS = 'button, input[type="submit"], input[type="button"], [role="button"], a[role="button"]';
-  const OURS = ".sm-dialog, .sm-badge, .sm-toast, .sm-cursor, .sm-hold-ring, .sm-magnet";
+  const OURS = ".sm-dialog, .sm-badge, .sm-toast, .sm-cursor, .sm-hold-ring";
 
   // --- 1. Word list ------------------------------------------------------------
   // Also the wording real shops use ("Place your order", "Buy now", "Check out", "Pay now"…).
@@ -301,8 +301,8 @@
     else click();
   }
 
-  // Real clicks that nobody redirected (this listener runs after the magnet
-  // and steady-cursor listeners; those call guardedClick themselves).
+  // Real clicks that nobody redirected (this listener runs after the
+  // steady-cursor listener, which calls guardedClick itself).
   window.addEventListener("click", (e) => {
     if (!e.isTrusted || e.detail === 0 || e.button !== 0 || !SM.enabled || !SM.settings.riskyConfirm) return;
     if (e.target.closest && e.target.closest(OURS)) return;

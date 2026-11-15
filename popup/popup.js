@@ -58,7 +58,6 @@ const fields = {
   keys: document.getElementById("keys"),
   clicksIgnored: document.getElementById("clicks-ignored"),
   keysFiltered: document.getElementById("keys-filtered"),
-  magnetAssists: document.getElementById("magnet-assists"),
   recent: document.getElementById("recent"),
 };
 
@@ -111,7 +110,6 @@ async function refresh() {
     fields.keys.textContent = stats.keys;
     fields.clicksIgnored.textContent = stats.clicksIgnored ?? 0;
     fields.keysFiltered.textContent = stats.keysFiltered ?? 0;
-    fields.magnetAssists.textContent = stats.magnetAssists ?? 0;
     renderRisky(stats.risky);
     fields.recent.textContent = stats.recentSize;
   } catch {

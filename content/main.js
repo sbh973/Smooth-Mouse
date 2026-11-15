@@ -47,7 +47,6 @@
         movement: live.ready ? live.label : null,
         clicksIgnored: SM.clickHold ? SM.clickHold.blocked : 0,
         keysFiltered: SM.keyguard ? SM.keyguard.filtered : 0,
-        magnetAssists: SM.assist ? SM.assist.assists : 0,
         risky: SM.risky ? SM.risky.summary() : null,
         modelKind: live.model ? (live.model.trainedOn === "synthetic+personal" ? "personal" : "default") : null,
         unstablePct: live.ready ? Math.round(live.probs.unstable * 100) : null,

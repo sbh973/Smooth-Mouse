@@ -107,18 +107,6 @@ html.sm-hide-cursor * {
 }
 .sm-toast[hidden] { display: none; }
 
-/* --- Button magnet (assist.js): outline around the button that will catch the click --- */
-.sm-magnet {
-  position: fixed;
-  z-index: 2147483646;
-  border: 3px solid #0F766E;
-  border-radius: 10px;
-  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.2);
-  pointer-events: none;
-  box-sizing: border-box;
-}
-.sm-magnet[hidden] { display: none; }
-
 /* --- Risky-click dialog (risky.js) --- */
 .sm-dialog, .sm-dialog * {
   box-sizing: border-box;
@@ -129,7 +117,7 @@ html.sm-hide-cursor * {
 .sm-dialog {
   position: fixed;
   inset: 0;
-  /* Just BELOW our cursors, hold ring, magnet outline and toasts, so the
+  /* Just BELOW our cursors, hold ring and toasts, so the
      cursor is always drawn on top of the dialog. */
   z-index: 2147483640;
   display: flex;
