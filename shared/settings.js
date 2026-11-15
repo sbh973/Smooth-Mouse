@@ -16,6 +16,7 @@ window.SmoothMouseDefaults = {
   riskyConfirm: true,         // "Did you mean to click 'Send'?" for risky buttons while shaking
   useGemini: true,            // ask Gemini (via the local server) which buttons are risky
   simulateTremor: false,      // shaky-hand simulator, for demos
+  simAmplitudePx: 12,         // simulator shake strength (2-40 px)
   usePersonalModel: true,     // use the model trained during calibration (Checkpoint 5)
   showBadgeEverywhere: false, // debug badge on all sites (always on the demo page)
 };

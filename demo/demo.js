@@ -86,10 +86,28 @@ simBtn.addEventListener("click", async () => {
   }
 });
 
+// Shake strength slider (also in the popup)
+const strength = document.getElementById("sim-strength");
+const strengthOut = document.getElementById("sim-strength-value");
+const level = (px) => (px <= 6 ? "light" : px <= 16 ? "medium" : px <= 28 ? "strong" : "very strong");
+function showStrength(px) {
+  strength.value = px;
+  strengthOut.textContent = `${px} px (${level(px)})`;
+  strength.setAttribute("aria-valuetext", `${px} pixels, ${level(px)}`);
+}
+let strengthDragging = false;
+strength.addEventListener("input", () => {
+  strengthDragging = true;
+  showStrength(Number(strength.value));
+  ask("set-sim-strength", "sim-strength", { px: Number(strength.value) }).catch(() => {});
+});
+strength.addEventListener("change", () => (strengthDragging = false));
+
 async function checkExtension() {
   try {
     const pong = await ask("ping", "pong");
     showSim(!!pong.simulator);
+    if (!strengthDragging && pong.simAmplitudePx) showStrength(pong.simAmplitudePx);
     extStatus.textContent = pong.enabled
       ? "Smooth Mouse is running on this page."
       : "Smooth Mouse is installed but switched off in the popup.";

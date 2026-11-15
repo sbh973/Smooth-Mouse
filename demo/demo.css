@@ -71,3 +71,8 @@ h3 { font-size: 15px; margin: 16px 0 4px; }
 .scan-why { display: block; color: var(--muted); margin-top: 2px; }
 .scan-tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .scan-tag.gemini { border-color: var(--teal); color: var(--teal); background: #E6F4F1; }
+
+.sim-strength { margin-top: 10px; }
+.sim-strength label { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
+.sim-strength output { font-weight: 700; color: var(--teal); font-variant-numeric: tabular-nums; }
+.sim-strength input { width: 100%; min-height: 36px; accent-color: var(--teal); }

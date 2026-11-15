@@ -24,14 +24,21 @@ for (const btn of switches) {
   });
 }
 
+/** Words for the simulator's shake strength. */
+function shakeLevel(px) {
+  return px <= 6 ? "light" : px <= 16 ? "medium" : px <= 28 ? "strong" : "very strong";
+}
+
 // --- Sliders: every <input type="range" data-range-setting="..."> stores a number.
 for (const input of document.querySelectorAll("[data-range-setting]")) {
   const key = input.dataset.rangeSetting;
   const out = document.getElementById(input.id + "-value");
+  const unit = input.dataset.unit || "%";
   const show = (v) => {
     input.value = v;
-    out.textContent = `${v}%`;
-    input.setAttribute("aria-valuetext", v == 0 ? "0 percent, adaptive only" : `${v} percent`);
+    out.textContent = unit === "px" ? `${v} px (${shakeLevel(v)})` : `${v}%`;
+    input.setAttribute("aria-valuetext", unit === "px" ? `${v} pixels, ${shakeLevel(v)}`
+      : v == 0 ? "0 percent, adaptive only" : `${v} percent`);
   };
   api.storage.local.get({ [key]: DEFAULTS[key] }).then((st) => show(st[key]));
   input.addEventListener("input", () => {

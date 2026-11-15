@@ -73,11 +73,15 @@
       // cleanly in both Firefox and Chrome.
       window.postMessage({ source: "smooth-mouse-ext", json: JSON.stringify(payload) }, "*");
 
-    if (data.type === "set-simulator") {
+    if (data.type === "set-sim-strength") {
+      const px = Math.max(2, Math.min(40, Number(data.px) || 12));
+      api.storage.local.set({ simAmplitudePx: px });
+      reply({ type: "sim-strength", px });
+    } else if (data.type === "set-simulator") {
       api.storage.local.set({ simulateTremor: !!data.on });
       reply({ type: "simulator", on: !!data.on });
     } else if (data.type === "ping") {
-      reply({ type: "pong", enabled: SM.enabled, simulator: !!SM.settings.simulateTremor });
+      reply({ type: "pong", enabled: SM.enabled, simulator: !!SM.settings.simulateTremor, simAmplitudePx: SM.settings.simAmplitudePx });
     } else if (data.type === "export-request") {
       const seconds = Math.max(1, Math.min(Number(data.seconds) || 10, 60));
       const samples = SM.capture.getPointerHistory(seconds);

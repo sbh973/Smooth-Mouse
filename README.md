@@ -290,7 +290,7 @@ Simulated tests: 12/12 pass (accidental "hh" 40 ms apart is dropped, a real "ll"
 
 **Gemini page scan** (demo page panel) lists what was flagged and by whom. On the demo page, Gemini catches **Complete booking · $249**, **Wire $500 to Alex**, **Close my account** and an **icon-only 🗑 button**, none of which the word list matches, and correctly leaves Bold, Add to wishlist and View details alone.
 
-**Shaky-hand simulator** (popup → Demo, or the button on the demo page): adds a fake tremor (~5 times a second, ±12 px, plus noise) to the mouse *before* Smooth Mouse sees it, keeps shaking while the mouse is still, hides the real cursor and shows a shaky orange one, makes clicks land where the shaky cursor is, and sometimes adds an accidental extra tap. It works with Smooth Mouse switched off too, to show the "before".
+**Shaky-hand simulator** (popup → Demo, or the button on the demo page): adds a fake tremor (~5 times a second; **Shake strength** slider from 2 px "light" to 40 px "very strong", default 12 px, plus noise) to the mouse *before* Smooth Mouse sees it, keeps shaking while the mouse is still, hides the real cursor and shows a shaky orange one, makes clicks land where the shaky cursor is, and sometimes adds an accidental extra tap. It works with Smooth Mouse switched off too, to show the "before".
 
 **Privacy:** Gemini receives button labels, nearby button labels, the page title and small icon images, never typed text, page content or movement.
 

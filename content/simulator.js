@@ -2,7 +2,7 @@
 // feel the problem (and watch Smooth Mouse fix it).
 //
 // When it's on:
-//   - a fake tremor (~5 times a second, about ±12 px, plus a little noise) is
+//   - a fake tremor (~5 times a second, ±2-40 px set by a slider, plus noise) is
 //     added to every mouse sample BEFORE the rest of Smooth Mouse sees it,
 //     and it keeps shaking even when the mouse is still
 //   - the real cursor is hidden; you steer a shaky one
@@ -14,7 +14,7 @@
 (() => {
   const SM = window.SmoothMouse;
 
-  const AMP = 12;     // px
+  const DEFAULT_AMP = 12; // px; the popup / demo page slider changes it live
   const FREQ = 5;     // shakes per second
   const EXTRA_TAP_CHANCE = 0.35;
   const phase = Math.random() * Math.PI * 2;
@@ -27,7 +27,8 @@
   /** The fake tremor at time t (ms): an elliptical wobble plus a little noise. */
   function tremor(t) {
     const w = 2 * Math.PI * FREQ * (t / 1000) + phase;
-    const amp = AMP * (1 + 0.15 * Math.sin(2 * Math.PI * 0.4 * (t / 1000)));
+    const base = (SM.settings && SM.settings.simAmplitudePx) || DEFAULT_AMP;
+    const amp = base * (1 + 0.15 * Math.sin(2 * Math.PI * 0.4 * (t / 1000)));
     return [amp * Math.sin(w) + noise(), 0.45 * amp * Math.sin(w + 1.3) + noise()];
   }
 

@@ -88,6 +88,10 @@ Thanks!</textarea>
       <h3>Shaky hand simulator</h3>
       <p class="hint">Adds a fake tremor to your mouse so you can feel the problem. Try it with Smooth Mouse on, then switched off in the popup.</p>
       <button type="button" id="sim-toggle" class="btn primary" aria-pressed="false">Turn on shaky hand</button>
+      <div class="sim-strength">
+        <label for="sim-strength">Shake strength <output id="sim-strength-value" for="sim-strength">12 px (medium)</output></label>
+        <input type="range" id="sim-strength" min="2" max="40" step="1" value="12">
+      </div>
 
       <h3>Gemini page scan</h3>
       <p id="sm-gemini-status" class="hint">Waiting to scan this page…</p>

@@ -116,6 +116,11 @@
       <span class="switch-label">Shaky hand simulator</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
     </button>
+    <div class="slider-row">
+      <label for="sim-strength">Shake strength <output id="sim-strength-value" for="sim-strength">12 px</output></label>
+      <input type="range" id="sim-strength" data-range-setting="simAmplitudePx" data-unit="px" min="2" max="40" step="1" value="12">
+      <p class="note">How far the simulated hand shakes back and forth, about 5 times a second.</p>
+    </div>
   </section>
 
   <footer>
