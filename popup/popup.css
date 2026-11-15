@@ -41,3 +41,4 @@ footer { margin-top: 16px; }
 .slider-row label { display: flex; justify-content: space-between; font-weight: 500; }
 .slider-row output { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--teal); }
 .slider-row input[type="range"] { width: 100%; min-height: 32px; accent-color: var(--teal); }
+.small-btn { min-height: 44px; width: 100%; margin-top: 6px; font-size: 13px; }

@@ -16,10 +16,12 @@ const api = globalThis.browser ?? globalThis.chrome;
 const SERVER = "http://localhost:8000";
 const HOLD_MS = 10000;
 const N_TARGETS = 10;
+const N_RIGHT_TARGETS = 3;
+const DEFAULT_HOLD_MS = 150; // used when calibration has too few clicks to decide
 const SIZES = [24, 32, 44, 56, 72, 28, 64, 36, 48, 24]; // px, varied on purpose
 const SENTENCE = "the quick brown fox jumps over the lazy dog"; // no doubled letters, so any double press is accidental
 
-const data = { hold: [], reach: [], clicks: [], keys: [] };
+const data = { hold: [], reach: [], clicks: [], rclicks: [], keys: [] };
 let serverInfo = null; // result of GET /health, or null if the server is off
 
 // ---------------------------------------------------------------------------
@@ -76,8 +78,8 @@ function recordPointer(el, list, type = "move") {
 // ---------------------------------------------------------------------------
 // Screens and progress
 // ---------------------------------------------------------------------------
-const SCREENS = ["intro", "hold", "click", "type", "working", "results"];
-const STEP_OF = { intro: 0, hold: 1, click: 2, type: 3, working: 4, results: 4 };
+const SCREENS = ["intro", "hold", "click", "rclick", "type", "working", "results"];
+const STEP_OF = { intro: 0, hold: 1, click: 2, rclick: 2, type: 3, working: 4, results: 4 };
 
 function show(name) {
   for (const s of SCREENS) $("screen-" + s).hidden = s !== name;
@@ -89,7 +91,7 @@ function show(name) {
     if (n === step) li.setAttribute("aria-current", "step");
     else li.removeAttribute("aria-current");
   });
-  const pct = { intro: 0, hold: 10, click: 40, type: 70, working: 90, results: 100 }[name];
+  const pct = { intro: 0, hold: 10, click: 35, rclick: 55, type: 70, working: 90, results: 100 }[name];
   $("progress-fill").style.width = pct + "%";
   document.querySelector(".progress").setAttribute("aria-valuenow", String(pct));
   const heading = $("screen-" + name).querySelector("h2");
@@ -160,61 +162,82 @@ function startHold() {
 // Step 2: click targets
 // ---------------------------------------------------------------------------
 function startClick() {
-  show("click");
   data.reach = [];
-  data.clicks = [];
-  const arena = $("click-arena");
+  runTargets({ screen: "click", button: 0, count: N_TARGETS, clicks: (data.clicks = []), skipKey: "click", next: startRightClick });
+}
+
+function startRightClick() {
+  runTargets({ screen: "rclick", button: 2, count: N_RIGHT_TARGETS, clicks: (data.rclicks = []), skipKey: "rclick", next: startType });
+}
+
+/**
+ * One round of targets. Records for every press of `button`:
+ *   hit / miss, accidental double (a miss right after a hit), the gap since the
+ *   last hit, how far the cursor drifted during the press, and HOW LONG the
+ *   button was held (durationMs) — the AI uses that to pick the hold period.
+ */
+function runTargets({ screen, button, count, clicks, skipKey, next }) {
+  show(screen);
+  const arena = $(screen + "-arena");
   arena.innerHTML = "";
-  const stopRecording = recordPointer(arena, data.reach);
-  let hits = 0, target = null, lastHitDown = null, down = null;
+  const stopRecording = button === 0 ? recordPointer(arena, data.reach) : () => {};
+  let hits = 0, target = null, lastHitDown = null, down = null, done = false;
 
   const placeTarget = () => {
     const size = SIZES[hits % SIZES.length];
     const w = arena.clientWidth, h = arena.clientHeight, pad = 12;
     target = document.createElement("button");
     target.className = "target";
-    target.setAttribute("aria-label", `Target ${hits + 1} of ${N_TARGETS}`);
+    target.setAttribute("aria-label", `Target ${hits + 1} of ${count}`);
     target.style.width = target.style.height = size + "px";
     target.style.left = pad + Math.random() * (w - size - 2 * pad) + "px";
     target.style.top = pad + Math.random() * (h - size - 2 * pad) + "px";
     arena.appendChild(target);
-    $("click-count").textContent = `${hits} of ${N_TARGETS}`;
+    $(screen + "-count").textContent = `${hits} of ${count}`;
   };
 
   const onDown = (e) => {
+    if (e.button !== button || done) return;
     const now = performance.now();
-    const hit = target && (e.target === target);
-    down = { t: now, x: e.clientX, y: e.clientY };
-    data.reach.push({ t: now, x: e.clientX, y: e.clientY, type: "down" });
+    const hit = target && e.target === target;
+    down = { t: now, x: e.clientX, y: e.clientY, click: null };
+    if (button === 0) data.reach.push({ t: now, x: e.clientX, y: e.clientY, type: "down" });
     // A miss soon after a hit = the target already moved = accidental double-click.
     const accidentalDouble = !hit && lastHitDown !== null && now - lastHitDown < 600;
-    data.clicks.push({ t: now, hit, accidentalDouble, gapMs: lastHitDown === null ? null : now - lastHitDown, drift: 0 });
+    down.click = { t: now, hit, accidentalDouble, gapMs: lastHitDown === null ? null : now - lastHitDown, drift: 0, durationMs: null };
+    clicks.push(down.click);
     if (hit) {
       lastHitDown = now;
       hits++;
       target.remove();
-      if (hits >= N_TARGETS) return finish(false);
-      placeTarget();
+      target = null;
+      if (hits >= count) done = true; // finish after this press is released
+      else placeTarget();
     }
   };
   const onUp = (e) => {
-    if (!down) return;
-    const last = data.clicks[data.clicks.length - 1];
-    if (last) last.drift = Math.hypot(e.clientX - down.x, e.clientY - down.y); // movement during the press
+    if (e.button !== button || !down) return;
+    down.click.drift = Math.hypot(e.clientX - down.x, e.clientY - down.y); // movement during the press
+    down.click.durationMs = performance.now() - down.t;                    // how long it was held
     down = null;
+    if (done) finish(false);
   };
+  const noMenu = (e) => e.preventDefault(); // right-clicking targets shouldn't open the browser menu
   const finish = (skipped) => {
     stopRecording();
-    arena.removeEventListener("pointerdown", onDown);
-    window.removeEventListener("pointerup", onUp);
+    arena.removeEventListener("mousedown", onDown);
+    window.removeEventListener("mouseup", onUp);
+    arena.removeEventListener("contextmenu", noMenu);
     arena.innerHTML = "";
-    data.clickSkipped = skipped;
-    if (skipped) { data.reach = []; data.clicks = []; }
-    startType();
+    data[skipKey + "Skipped"] = skipped;
+    if (skipped) clicks.length = 0;
+    next();
   };
-  arena.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointerup", onUp);
-  skipHandlers.click = () => finish(true);
+  // mousedown/mouseup fire for EVERY button (pointerdown only fires for the first one pressed).
+  arena.addEventListener("mousedown", onDown);
+  window.addEventListener("mouseup", onUp);
+  arena.addEventListener("contextmenu", noMenu);
+  skipHandlers[skipKey] = () => finish(true);
   placeTarget();
 }
 
@@ -324,6 +347,69 @@ function keyStats(keys) {
   };
 }
 
+/**
+ * HOLD PERIOD: how long a button must be held for a press to count as a click.
+ *
+ * Accidental clicks from a shaky hand are usually very quick taps; clicks you
+ * mean are held a little longer. For each button we look at how long the user
+ * held their INTENDED clicks (target hits) and their ACCIDENTAL ones (a second
+ * press right after a hit, when the target had already moved):
+ *   - if the two groups don't overlap, put the hold period halfway between the
+ *     longest accidental tap and the short end (10th percentile) of intended clicks;
+ *   - otherwise use 80% of the user's shortest intended clicks (5th percentile),
+ *     so ~95% of their normal clicks still count without changing how they click.
+ * Clamped to 40-500 ms and rounded to 10 ms. Middle button uses the left value.
+ * Protection is switched ON only if calibration saw a reason: a measurable
+ * resting wobble (>= 1.5 px) or at least one accidental double-click.
+ */
+function chooseClickHold(m) {
+  const durations = (list, pred) => list.filter((c) => pred(c) && c.durationMs !== null).map((c) => c.durationMs);
+  const decide = (intended, accidental) => {
+    if (intended.length < 2) return { ms: DEFAULT_HOLD_MS, basis: "default" };
+    const p10 = percentile(intended, 0.1), p5 = percentile(intended, 0.05);
+    let ms, basis;
+    if (accidental.length && Math.max(...accidental) < p10) {
+      ms = (Math.max(...accidental) + p10) / 2;
+      basis = "split";
+    } else {
+      ms = 0.8 * p5;
+      basis = "intended";
+    }
+    return { ms: Math.round(clamp(ms, 40, 500) / 10) * 10, basis };
+  };
+  const leftIntended = durations(data.clicks, (c) => c.hit);
+  const leftAccidental = durations(data.clicks, (c) => c.accidentalDouble);
+  const left = decide(leftIntended, leftAccidental);
+  const rightIntended = durations(data.rclicks, (c) => c.hit);
+  const right = rightIntended.length >= 2 ? decide(rightIntended, durations(data.rclicks, (c) => c.accidentalDouble)) : { ...left, basis: "same as left" };
+  const recommendedOn = (m.amplitudePx || 0) >= 1.5 || (m.accidentalDoubleClicks || 0) > 0;
+
+  const s = (ms) => (ms / 1000).toFixed(2);
+  let reason;
+  if (left.basis === "split") {
+    reason = `Your accidental clicks lasted at most ${s(Math.max(...leftAccidental))} s, while your intended clicks lasted at least about ${s(percentile(leftIntended, 0.1))} s, so a ${s(left.ms)} s hold ignores the quick taps and still lets your real clicks through.`;
+  } else if (left.basis === "intended") {
+    reason = `Your normal clicks lasted at least about ${s(percentile(leftIntended, 0.05))} s, so requiring ${s(left.ms)} s ignores quicker accidental taps without changing how you click.`;
+  } else {
+    reason = `There weren't enough clicks to measure, so Smooth Mouse uses a standard ${s(left.ms)} s hold.`;
+  }
+  reason += recommendedOn
+    ? " Accidental-click protection is ON because calibration saw shaking or an accidental double-click."
+    : " Protection is OFF because your clicks looked steady; you can turn it on in the popup.";
+
+  return {
+    left: left.ms, right: right.ms, middle: left.ms,
+    recommendedOn, reason,
+    stats: {
+      intendedClicks: leftIntended.length,
+      accidentalClicks: leftAccidental.length,
+      shortestIntendedMs: leftIntended.length ? Math.round(Math.min(...leftIntended)) : null,
+      medianIntendedMs: leftIntended.length ? Math.round(median(leftIntended)) : null,
+      longestAccidentalMs: leftAccidental.length ? Math.round(Math.max(...leftAccidental)) : null,
+    },
+  };
+}
+
 /** Thresholds used by click/key protection and target assistance (Checkpoint 6). */
 function buildProfile(m) {
   const A = m.amplitudePx || 0;
@@ -351,6 +437,7 @@ async function analyze() {
     ...keyStats(data.keys),
   };
   const profile = buildProfile(measurements);
+  profile.clickHold = chooseClickHold(measurements);
 
   // 1. Personal model from the local server (raw movement goes to localhost only).
   let personal = null;
@@ -375,6 +462,8 @@ async function analyze() {
     personalModelTrained: !!personal,
     calmMovesWronglyFlaggedBeforePercent: pct(r.calmCalledUnstableBefore),
     calmMovesWronglyFlaggedAfterPercent: pct(r.calmCalledUnstableAfter),
+    clickHoldSeconds: Math.round(profile.clickHold.left / 10) / 100,
+    accidentalClickProtectionOn: profile.clickHold.recommendedOn,
   };
   let explanation = null;
   if (serverInfo && serverInfo.gemini) {
@@ -388,6 +477,11 @@ async function analyze() {
   await api.storage.local.set({
     profile: { ...profile, measurements: roundAll(measurements), calibratedAt, personalModel: !!personal },
     personalModel: personal ? personal.model : null,
+    // The AI's decision becomes the active setting; the user can still change it in the popup.
+    ignoreLeft: profile.clickHold.recommendedOn,
+    ignoreRight: profile.clickHold.recommendedOn,
+    ignoreMiddle: profile.clickHold.recommendedOn,
+    holdOverrideMs: null,
   });
 
   renderResults(measurements, profile, personal, explanation);
@@ -430,7 +524,10 @@ function renderResults(m, profile, personal, explanation) {
   }
   fillList("facts", facts);
 
+  const ch = profile.clickHold;
   fillList("settings", [
+    `Hold period: ${(ch.left / 1000).toFixed(2)} s (left and middle), ${(ch.right / 1000).toFixed(2)} s (right). ` +
+      `Accidental-click protection is ${ch.recommendedOn ? "ON" : "OFF"}. ${ch.reason}`,
     `Repeated key within ${profile.keyRepeatWindowMs} ms is treated as accidental.`,
     `Second click within ${profile.doubleClickWindowMs} ms is treated as an accidental double-click.`,
     `Buttons within ${profile.magnetRadiusPx} px of the steady cursor attract the click.`,

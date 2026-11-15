@@ -49,6 +49,7 @@ const fields = {
   clicks: document.getElementById("clicks"),
   dblclicks: document.getElementById("dblclicks"),
   keys: document.getElementById("keys"),
+  clicksIgnored: document.getElementById("clicks-ignored"),
   recent: document.getElementById("recent"),
 };
 
@@ -66,6 +67,7 @@ async function refresh() {
     fields.clicks.textContent = stats.clicks;
     fields.dblclicks.textContent = stats.dblclicks;
     fields.keys.textContent = stats.keys;
+    fields.clicksIgnored.textContent = stats.clicksIgnored ?? 0;
     fields.recent.textContent = stats.recentSize;
   } catch {
     // Happens on browser pages (about:, chrome://, the add-ons store) where
@@ -93,3 +95,38 @@ api.storage.local.get({ profile: null }).then(({ profile }) => {
   const when = new Date(profile.calibratedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
   info.textContent = `Calibrated ${when}` + (profile.personalModel ? " (personal model)." : " (default model, tuned settings).");
 });
+
+// --- Hold period: chosen by calibration, with a manual override slider.
+const holdSlider = document.getElementById("hold-slider");
+const holdValue = document.getElementById("hold-value");
+const holdSource = document.getElementById("hold-source");
+const holdReset = document.getElementById("hold-reset");
+const DEFAULT_HOLD_MS = 150;
+
+async function showHold() {
+  const { profile, holdOverrideMs } = await api.storage.local.get({ profile: null, holdOverrideMs: null });
+  const calibrated = profile && profile.clickHold ? profile.clickHold : null;
+  const ms = typeof holdOverrideMs === "number" ? holdOverrideMs : calibrated ? calibrated.left : DEFAULT_HOLD_MS;
+  holdSlider.value = ms;
+  holdValue.textContent = `${(ms / 1000).toFixed(2)} s`;
+  holdSlider.setAttribute("aria-valuetext", `${(ms / 1000).toFixed(2)} seconds`);
+  if (typeof holdOverrideMs === "number") {
+    holdSource.textContent = calibrated
+      ? `Set by you. Calibration chose ${(calibrated.left / 1000).toFixed(2)} s.`
+      : "Set by you.";
+    holdReset.hidden = !calibrated;
+  } else if (calibrated) {
+    holdSource.textContent = `Chosen by calibration. ${calibrated.reason}`;
+    holdReset.hidden = true;
+  } else {
+    holdSource.textContent = "Standard value. Calibrate so Smooth Mouse can pick one for your hand.";
+    holdReset.hidden = true;
+  }
+}
+holdSlider.addEventListener("input", () => {
+  const ms = Number(holdSlider.value);
+  holdValue.textContent = `${(ms / 1000).toFixed(2)} s`;
+  api.storage.local.set({ holdOverrideMs: ms }).then(showHold);
+});
+holdReset.addEventListener("click", () => api.storage.local.set({ holdOverrideMs: null }).then(showHold));
+showHold();

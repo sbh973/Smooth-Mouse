@@ -202,3 +202,11 @@ Tremor trends page (by day and time of day, a "report for my doctor"), the Decis
 - Simple, working code over clever code. Never leave the demo page broken. Keep earlier features working.
 - If you hit a browser or latency limitation, say so plainly and suggest the simplest workaround.
 - Comment the non-obvious parts (especially features, the controller and the model export) so we can explain them to judges.
+
+---
+
+# Direction change (Saturday evening)
+We tried a 5-filter library + auto-tuner + Filter lab and **removed it**: too complicated, nobody would use it.
+The priority instead: features users actually feel, set automatically by calibration.
+- **Done:** hold period + ignoring accidental clicks per button (left/right/middle), chosen by calibration (`content/clickhold.js`, `calibrate.js → chooseClickHold`), with popup switches and an override slider.
+- **Still to do from the original plan:** key-repeat filter and target assistance (CP6), risky-click confirmation with Gemini + shaky-hand simulator (CP7), before/after test (CP8), polish + README/DEVPOST/DEMO (CP9).

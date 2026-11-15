@@ -26,7 +26,7 @@
       <h2 id="intro-title">About one minute, three short steps</h2>
       <ol class="intro-list">
         <li><strong>Hold</strong> your cursor on a dot for 10 seconds.</li>
-        <li><strong>Click</strong> 10 targets of different sizes.</li>
+        <li><strong>Click</strong> 10 targets of different sizes, then right-click 3.</li>
         <li><strong>Type</strong> one short sentence.</li>
       </ol>
       <p>Smooth Mouse uses this to fit its settings to your hand. Your movement data stays on this computer.
@@ -52,6 +52,14 @@
       <p>Click each circle as it appears, at your normal pace. <span id="click-count" aria-live="polite">0 of 10</span></p>
       <div class="arena" id="click-arena"></div>
       <button class="link" data-skip="click">Skip this step</button>
+    </section>
+
+    <!-- Step 2b: right-click targets -->
+    <section class="card" id="screen-rclick" hidden aria-labelledby="rclick-title">
+      <h2 id="rclick-title">Step 2 of 3: Right-click 3 targets</h2>
+      <p>Now <strong>right-click</strong> each circle, at your normal pace. <span id="rclick-count" aria-live="polite">0 of 3</span></p>
+      <div class="arena" id="rclick-arena"></div>
+      <button class="link" data-skip="rclick">Skip this step</button>
     </section>
 
     <!-- Step 3: type -->

@@ -6,6 +6,10 @@ window.SmoothMouseDefaults = {
   stabilize: true,            // adaptive cursor stabilization (Checkpoint 4)
   redirectClicks: true,       // clicks land where the steady cursor is
   minSmoothing: 0,            // 0-100 %: smoothing floor for EVERY movement (0 = adaptive only)
+  ignoreLeft: false,          // ignore quick accidental LEFT clicks (hold period); calibration decides
+  ignoreRight: false,         // ...RIGHT clicks
+  ignoreMiddle: false,        // ...MIDDLE clicks
+  holdOverrideMs: null,       // null = use the hold period chosen by calibration
   usePersonalModel: true,     // use the model trained during calibration (Checkpoint 5)
   showBadgeEverywhere: false, // debug badge on all sites (always on the demo page)
 };

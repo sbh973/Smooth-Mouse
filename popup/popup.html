@@ -24,6 +24,7 @@
       <div><dt>Clicks</dt><dd id="clicks">–</dd></div>
       <div><dt>Double-clicks</dt><dd id="dblclicks">–</dd></div>
       <div><dt>Keys pressed</dt><dd id="keys">–</dd></div>
+      <div><dt>Quick clicks ignored</dt><dd id="clicks-ignored">–</dd></div>
       <div><dt>Samples in 3 s buffer</dt><dd id="recent">–</dd></div>
     </dl>
     <p class="note">Movement labels are engineering labels, not a diagnosis.</p>
@@ -54,6 +55,29 @@
       <span class="switch-label">Debug badge on all sites</span>
       <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
     </button>
+  </section>
+
+  <section aria-labelledby="clicks-title">
+    <h2 id="clicks-title">Accidental clicks</h2>
+    <p id="hold-info" class="note">A click only counts if you hold the button for the hold period.</p>
+    <button class="switch row" role="switch" aria-checked="false" data-setting="ignoreLeft">
+      <span class="switch-label">Ignore quick left clicks</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
+    <button class="switch row" role="switch" aria-checked="false" data-setting="ignoreRight">
+      <span class="switch-label">Ignore quick right clicks</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
+    <button class="switch row" role="switch" aria-checked="false" data-setting="ignoreMiddle">
+      <span class="switch-label">Ignore quick middle clicks</span>
+      <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+    </button>
+    <div class="slider-row">
+      <label for="hold-slider">Hold period <output id="hold-value" for="hold-slider">–</output></label>
+      <input type="range" id="hold-slider" min="40" max="800" step="10" aria-describedby="hold-source">
+      <p id="hold-source" class="note"></p>
+      <button id="hold-reset" class="secondary small-btn" hidden>Use calibrated value</button>
+    </div>
   </section>
 
   <footer>

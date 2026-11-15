@@ -104,6 +104,8 @@ Rules:
   personal model now mistakes far fewer of their normal movements for shaking.
 - Mention missed clicks or accidental double presses only if they are above 0,
   and say Smooth Mouse can help catch those.
+- If accidentalClickProtectionOn is true, say that a click now counts when they
+  hold the button for about clickHoldSeconds seconds, so quick accidental taps are ignored.
 - Make NO medical claims and do not guess at causes or conditions.
 - End with exactly this sentence: "These are measurements of cursor movement, not a medical diagnosis."
 

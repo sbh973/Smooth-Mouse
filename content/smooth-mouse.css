@@ -72,3 +72,37 @@ html.sm-hide-cursor * {
   z-index: 2147483646;
   pointer-events: none;
 }
+
+/* --- Hold ring (clickhold.js): fills up while a protected button is held --- */
+.sm-hold-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2147483647;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+.sm-hold-ring[hidden] { display: none; }
+.sm-hold-ring svg { display: block; transform: rotate(-90deg); }
+.sm-hold-track { fill: none; stroke: rgba(16, 42, 67, 0.25); stroke-width: 4; }
+.sm-hold-fill { fill: none; stroke: #B4441A; stroke-width: 4; stroke-linecap: round; }
+.sm-hold-ring.sm-done .sm-hold-fill { stroke: #0F766E; }
+
+/* --- Toast messages ("Smooth Mouse ignored a quick click") --- */
+.sm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  max-width: min(90vw, 520px);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #102A43;
+  color: #fff;
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 6px 20px rgba(16, 42, 67, 0.3);
+  pointer-events: none;
+}
+.sm-toast[hidden] { display: none; }

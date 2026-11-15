@@ -4,7 +4,7 @@ A browser extension (Firefox first, Chrome compatible) that helps people with ha
 
 > **Not a medical device.** The labels `stable`, `unstable` and `uncertain` are engineering labels for cursor movement, not medical diagnoses.
 
-**Status:** Checkpoint 5: calibration, personal model and Gemini explanations. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
+**Status:** Checkpoint 5 + hold period and accidental-click protection. (See [CLAUDE.md](CLAUDE.md) for the full plan.)
 
 ## Project layout (so far)
 
@@ -218,6 +218,29 @@ Then:
 
 ### Gemini setup
 Put your key in `.env` (never in `.env.example`, which is committed): `GEMINI_API_KEY=...`. We use `gemini-3.6-flash` (about 1 s per answer in our tests), and `gemini-3.5-flash` is tried automatically if it's busy. The newest model, `gemini-3.8-flash`, returned "high demand" errors when we tested. **Gemini only ever receives summary numbers**, such as "7 px, 6 times a second, 3 missed clicks". It never receives raw movement, keystrokes or typed text.
+
+## Hold period: ignoring accidental clicks
+
+A shaky hand often produces **quick accidental taps**. With protection on, a click only counts if the button is **held for the hold period**. Left, right and middle each have their own switch.
+
+- **The AI picks the hold period during calibration** (`calibrate.js → chooseClickHold`). The click step records how long you hold each intended click (target hits) and each accidental one (a second press right after a hit, when the target had already moved). A short right-click round (3 targets) measures the right button separately.
+  - If the two groups don't overlap, the hold period goes halfway between your longest accidental tap and the short end (10th percentile) of your intended clicks.
+  - Otherwise it's 80% of your shortest intended clicks (5th percentile), so about 95% of your normal clicks still count without you changing how you click.
+  - Clamped to 0.04–0.5 s. Middle uses the left value.
+  - Protection is turned **on** automatically only if calibration saw a reason: a resting wobble ≥ 1.5 px, or an accidental double-click. Otherwise it stays off.
+- **While you hold** a protected button, a ring around the cursor fills up (orange → teal). Let go after it's full and the click counts.
+- **Quick taps are ignored** with a message: "Smooth Mouse ignored a quick left click. Hold for 0.09 s to click." The popup counts them.
+- **Popup → Accidental clicks:** switches for left, right and middle, the hold period with the reason calibration chose it, a slider to override it, and *Use calibrated value* to undo the override.
+- **How it works:** the press goes through untouched. We cancel the browser's finished-click event (`click`, `auxclick`, `contextmenu`, all fired on release) if the press was too short, so real clicks stay real, trusted events and work on every site. Keyboard clicks (Enter/Space) are never blocked.
+- **Limitation (right-click on macOS/Linux):** the browser opens the right-click menu as soon as the button goes *down*, before the hold time is known, so it can't be held back. In Firefox, set `ui.context_menus.after_mouseup` to `true` in `about:config` to make the menu open on release; then right-click protection works there too.
+
+Simulated tests: 9/9 cases pass, e.g. a 60 ms tap is ignored, a 200 ms press clicks, Enter on a button always works, an unprotected button is never touched, and a user override of 0.4 s blocks a 0.3 s press.
+
+### Test it
+1. Reload the extension, then run **Calibrate** from the popup (the click step now ends with 3 right-clicks). The results list the hold period and why.
+2. In the popup, turn on **Ignore quick left clicks** if calibration left it off.
+3. On the demo page, tap **Send** very quickly: nothing is sent, and a message says the click was ignored. Press and hold until the ring turns teal, then release: "Message sent".
+4. Drag the **Hold period** slider to change it; press **Use calibrated value** to go back.
 
 ## Privacy
 All movement data stays in the page's memory. Nothing is sent over the network. The export only happens when you click the button, and it contains pointer data only, never keystrokes.
